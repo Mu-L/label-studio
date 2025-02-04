@@ -3,9 +3,9 @@ title: Create and configure projects
 short: Create project
 type: guide
 tier: all
-order: 155
-order_enterprise: 56
-section: "Project Management"
+order: 104
+order_enterprise: 104
+section: "Create & Manage Projects"
 meta_title: Set up your labeling project
 meta_description: Set up data labeling and annotation projects in Label Studio to produce high-quality data for your machine learning and data science projects.
 ---
@@ -27,9 +27,15 @@ After you [start Label Studio](start) and [create an account](signup), create a 
    
 </div>
 
+</div>
+
 <div class="enterprise-only">
 
 1. [Create a project](#Create-a-project)
+2. [Import data](tasks.html).
+3. Select a template to configure the labeling interface for your dataset. [Set up the labeling interface for your project](setup.html).
+4. (Optional) [Set up annotation settings for your project](#Set-up-annotation-settings-for-your-project).
+5. (Optional) [Set up review settings for your project](#Set-up-review-settings-for-your-project).
 2. Import data into Label Studio. 
 
     For small projects, testing, or proof of concept work, you can import local files directly into Label Studio. However, for larger projects, we recommend setting up cloud storage. For more information, see [Get data into Label Studio](tasks) and [Sync data from external storage](storage). 
@@ -93,14 +99,7 @@ When you're done, click **Save**.
 <div class="opensource-only">
 
 !!! error Enterprise
-    Workspaces are only available for Label Studio Enterprise users. Label Studio Enterprise also includes many additional configuration options for projects, such as role-based access control and workflow automation. For more information, see [Compare Community and Enterprise Features](label_studio_comparison). 
-
-</div>
-
-<div class="enterprise-only">
-
-!!! info Tip
-    Rather than importing data directly into the project, you can [create a dataset](dataset_create). From here, you can use an AI-powered search to refine your data, which can then be added to different projects as tasks. For more information, see [Data Discovery overview](dataset_overview).
+    Workspaces are only available for Label Studio Enterprise users. Label Studio Enterprise also includes many additional configuration options for projects, such as role-based access control and workflow automation. For more information, see [Compare Community and Enterprise Features](label_studio_compare). 
 
 </div>
 
@@ -171,6 +170,9 @@ Annotators are the users who are labeling project tasks.
 
 For a description of all the settings available for annotators, see [Project settings - Annotation](project_settings_lse#Annotation) and [Project settings - Quality](project_settings_lse#Quality). 
 
+See the following video for a brief overview of automated task assignments:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/b1_o-yhT1uY?si=NspgI-rWwE6l7ZIN" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 #### Review settings
 

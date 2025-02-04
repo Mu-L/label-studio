@@ -1,6 +1,6 @@
 {
-  "message": "Merge branch 'develop' into 'fb-HUMSIG-37-visuals'",
-  "commit": "309851f803a1995c36b11f416f80cff709b6be2f",
-  "date": "2024-04-04T16:34:09.000Z",
-  "branch": "fb-HUMSIG-37-visuals"
+  "message": "refactor: OPTIC-1557: Remove Stale Feature Flag - fflag_fix_front_lsd… (#6997)",
+  "commit": "d2ee3a28547ff200240de7599ebfd46882b38cf2",
+  "date": "2025-02-04T19:34:20.000Z",
+  "branch": "develop"
 }

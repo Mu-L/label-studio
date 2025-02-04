@@ -34,6 +34,8 @@ except ImportError:
     print('\n\n !!! Please, pip install pytest-env \n\n')
     exit(-100)
 
+from label_studio.tests.sdk.fixtures import *  # noqa: F403
+
 from .utils import (
     azure_client_mock,
     create_business,
@@ -145,7 +147,9 @@ def s3_with_hypertext_s3_links(s3):
     s3.put_object(
         Bucket=bucket_name,
         Key='test.json',
-        Body=json.dumps({'text': '<a href="s3://hypertext-bucket/file with /spaces and\' / \' / quotes.jpg"/>'}),
+        Body=json.dumps(
+            {'text': '<a href="s3://pytest-s3-jsons-hypertext/file with /spaces and\' / \' / quotes.jpg"/>'}
+        ),
     )
     yield s3
 
@@ -157,7 +161,11 @@ def s3_with_partially_encoded_s3_links(s3):
     s3.put_object(
         Bucket=bucket_name,
         Key='test.json',
-        Body=json.dumps({'text': '<a href="s3://hypertext-bucket/file with /spaces and\' / \' / %2Bquotes%3D.jpg"/>'}),
+        Body=json.dumps(
+            {
+                'text': '<a href="s3://pytest-s3-json-partially-encoded/file with /spaces and\' / \' / %2Bquotes%3D.jpg"/>'
+            }
+        ),
     )
     yield s3
 
@@ -316,6 +324,62 @@ def redis_client():
         yield
 
 
+@pytest.fixture
+def ml_backend_for_test_predict(ml_backend):
+    # ML backend with single prediction per task
+    register_ml_backend_mock(
+        ml_backend,
+        url='http://test.ml.backend.for.sdk.com:9092',
+        predictions={
+            'results': [
+                {
+                    'model_version': 'ModelSingle',
+                    'score': 0.1,
+                    'result': [
+                        {'from_name': 'label', 'to_name': 'text', 'type': 'choices', 'value': {'choices': ['Single']}}
+                    ],
+                },
+            ]
+        },
+    )
+    # ML backend with multiple predictions per task
+    register_ml_backend_mock(
+        ml_backend,
+        url='http://test.ml.backend.for.sdk.com:9093',
+        predictions={
+            'results': [
+                [
+                    {
+                        'model_version': 'ModelA',
+                        'score': 0.2,
+                        'result': [
+                            {
+                                'from_name': 'label',
+                                'to_name': 'text',
+                                'type': 'choices',
+                                'value': {'choices': ['label_A']},
+                            }
+                        ],
+                    },
+                    {
+                        'model_version': 'ModelB',
+                        'score': 0.3,
+                        'result': [
+                            {
+                                'from_name': 'label',
+                                'to_name': 'text',
+                                'type': 'choices',
+                                'value': {'choices': ['label_B']},
+                            }
+                        ],
+                    },
+                ]
+            ]
+        },
+    )
+    yield ml_backend
+
+
 @pytest.fixture(autouse=True)
 def ml_backend():
     with ml_backend_mock() as m:
@@ -372,7 +436,7 @@ def project_dialog():
     label = """<View>
       <TextEditor>
         <Text name="dialog" value="$dialog"></Text>
-        <Header name="header" value="Your answer is:"></Header>
+        <Header value="Your answer is:"></Header>
         <TextArea name="answer"></TextArea>
       </TextEditor>
     </View>"""
@@ -469,6 +533,19 @@ def setup_project_ranker(client):
 @pytest.fixture
 def setup_project_choices(client):
     return setup_project(client, project_choices)
+
+
+@pytest.fixture()
+def contextlog_test_config(settings):
+    """
+    Configure settings for contextlog tests in CI.
+    Be sure that responses is activated in any testcase where this fixture is used.
+    """
+
+    settings.COLLECT_ANALYTICS = True
+    settings.CONTEXTLOG_SYNC = True
+    settings.TEST_ENVIRONMENT = False
+    settings.DEBUG_CONTEXTLOG = False
 
 
 @pytest.fixture

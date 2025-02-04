@@ -1,4 +1,3 @@
-
 export const API_CONFIG = {
   gateway: `${window.APP_SETTINGS.hostname}/api`,
   endpoints: {
@@ -34,7 +33,7 @@ export const API_CONFIG = {
     dataSummary: "/projects/:pk/summary",
 
     // DM
-    deleteTabs: 'DELETE:/dm/views/reset',
+    deleteTabs: "DELETE:/dm/views/reset",
 
     // Storages
     listStorages: "/storages/:target?",
@@ -65,7 +64,7 @@ export const API_CONFIG = {
     exportFormats: "/projects/:pk/export/formats",
 
     // Version
-    version: '/version',
+    version: "/version",
 
     // Webhook
     webhooks: "/webhooks",
@@ -74,6 +73,10 @@ export const API_CONFIG = {
     createWebhook: "POST:/webhooks",
     deleteWebhook: "DELETE:/webhooks/:pk",
     webhooksInfo: "/webhooks/info",
+
+    // Product tours
+    getProductTour: "GET:/current-user/product-tour",
+    updateProductTour: "PATCH:/current-user/product-tour",
   },
   alwaysExpectJSON: false,
 };
