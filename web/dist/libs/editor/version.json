@@ -1,6 +1,6 @@
 {
-  "message": "Merge branch 'develop' into 'fb-HUMSIG-37-visuals'",
-  "commit": "309851f803a1995c36b11f416f80cff709b6be2f",
-  "date": "2024-04-04T16:34:09.000Z",
-  "branch": "fb-HUMSIG-37-visuals"
+  "message": "fix: LEAP-1661: Don't allow to review skipped annotations (#7055)",
+  "commit": "6b51f559d21674f2e9048d01bdf9fd5954925e77",
+  "date": "2025-02-12T14:47:32.000Z",
+  "branch": "develop"
 }

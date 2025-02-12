@@ -5,6 +5,7 @@ import json
 import logging
 import traceback as tb
 from datetime import datetime
+from typing import Union
 from urllib.parse import urljoin
 
 import django_rq
@@ -231,9 +232,13 @@ class ImportStorage(Storage):
     def generate_http_url(self, url):
         raise NotImplementedError
 
-    def can_resolve_url(self, url):
-        # TODO: later check to the full prefix like "url.startswith(self.path_full)"
-        # Search of occurrences inside string, e.g. for cases like "gs://bucket/file.pdf" or "<embed src='gs://bucket/file.pdf'/>"
+    def can_resolve_url(self, url: Union[str, None]) -> bool:
+        return self.can_resolve_scheme(url)
+
+    def can_resolve_scheme(self, url: Union[str, None]) -> bool:
+        if not url:
+            return False
+        # TODO: Search for occurrences inside string, e.g. for cases like "gs://bucket/file.pdf" or "<embed src='gs://bucket/file.pdf'/>"
         _, prefix = get_uri_via_regex(url, prefixes=(self.url_scheme,))
         if prefix == self.url_scheme:
             return True
@@ -258,11 +263,11 @@ class ImportStorage(Storage):
             return resolved
 
         # string: process one url
-        elif isinstance(uri, str):
+        elif isinstance(uri, str) and self.url_scheme in uri:
             try:
                 # extract uri first from task data
-                extracted_uri, extracted_storage = get_uri_via_regex(uri, prefixes=(self.url_scheme,))
-                if not extracted_storage:
+                extracted_uri, _ = get_uri_via_regex(uri, prefixes=(self.url_scheme,))
+                if not self.can_resolve_url(extracted_uri):
                     logger.debug(f'No storage info found for URI={uri}')
                     return
 
@@ -521,11 +526,17 @@ class ExportStorage(Storage, ProjectStorageMixin):
     )
 
     def _get_serialized_data(self, annotation):
-        if settings.FUTURE_SAVE_TASK_TO_STORAGE:
+        user = self.project.organization.created_by
+        flag = flag_set(
+            'fflag_feat_optic_650_target_storage_task_format_long', user=user, override_system_default=False
+        )
+        if settings.FUTURE_SAVE_TASK_TO_STORAGE or flag:
             # export task with annotations
             # TODO: we have to rewrite save_all_annotations, because this func will be called for each annotation
             # TODO: instead of each task, however, we have to call it only once per task
-            return ExportDataSerializer(annotation.task).data
+            expand = ['annotations.reviews', 'annotations.completed_by']
+            context = {'project': self.project}
+            return ExportDataSerializer(annotation.task, context=context, expand=expand).data
         else:
             serializer_class = load_func(settings.STORAGE_ANNOTATION_SERIALIZER)
             # deprecated functionality - save only annotation
@@ -538,10 +549,12 @@ class ExportStorage(Storage, ProjectStorageMixin):
         annotation_exported = 0
         total_annotations = Annotation.objects.filter(project=self.project).count()
         self.info_set_in_progress()
+        self.cached_user = self.project.organization.created_by
 
         for annotation in Annotation.objects.filter(project=self.project).iterator(
             chunk_size=settings.STORAGE_EXPORT_CHUNK_SIZE
         ):
+            annotation.cached_user = self.cached_user
             self.save_annotation(annotation)
 
             # update progress counters
@@ -601,7 +614,7 @@ class ImportStorageLink(models.Model):
 
 class ExportStorageLink(models.Model):
 
-    annotation = models.OneToOneField(
+    annotation = models.ForeignKey(
         'tasks.Annotation', on_delete=models.CASCADE, related_name='%(app_label)s_%(class)s'
     )
     object_exists = models.BooleanField(
@@ -612,9 +625,18 @@ class ExportStorageLink(models.Model):
 
     @staticmethod
     def get_key(annotation):
-        if settings.FUTURE_SAVE_TASK_TO_STORAGE:
-            return str(annotation.task.id) + '.json' if settings.FUTURE_SAVE_TASK_TO_STORAGE_JSON_EXT else ''
-        return str(annotation.id)
+        # get user who created the organization explicitly using filter/values_list to avoid prefetching
+        user = getattr(annotation, 'cached_user', None)
+        # when signal for annotation save is called, user is not cached
+        if user is None:
+            user = annotation.project.organization.created_by
+        flag = flag_set('fflag_feat_optic_650_target_storage_task_format_long', user=user)
+
+        if settings.FUTURE_SAVE_TASK_TO_STORAGE or flag:
+            ext = '.json' if settings.FUTURE_SAVE_TASK_TO_STORAGE_JSON_EXT or flag else ''
+            return str(annotation.task.id) + ext
+        else:
+            return str(annotation.id)
 
     @property
     def key(self):

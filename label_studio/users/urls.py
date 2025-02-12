@@ -3,26 +3,29 @@
 from os.path import join
 
 from django.conf import settings
-from django.conf.urls import include, url
+from django.conf.urls import include
 from django.urls import path, re_path
 from django.views.static import serve
 from rest_framework import routers
 from users import api, views
+from users.product_tours import api as product_tours_api
 
 router = routers.DefaultRouter()
 router.register(r'users', api.UserAPI, basename='user')
 
 urlpatterns = [
-    url(r'^api/', include(router.urls)),
+    re_path(r'^api/', include(router.urls)),
     # Authentication
     path('user/login/', views.user_login, name='user-login'),
     path('user/signup/', views.user_signup, name='user-signup'),
     path('user/account/', views.user_account, name='user-account'),
-    url(r'^logout/?$', views.logout, name='logout'),
+    re_path(r'^logout/?$', views.logout, name='logout'),
     # Token
     path('api/current-user/reset-token/', api.UserResetTokenAPI.as_view(), name='current-user-reset-token'),
     path('api/current-user/token', api.UserGetTokenAPI.as_view(), name='current-user-token'),
     path('api/current-user/whoami', api.UserWhoAmIAPI.as_view(), name='current-user-whoami'),
+    # Product tours
+    path('api/current-user/product-tour', product_tours_api.ProductTourAPI.as_view(), name='product-tour'),
 ]
 
 # When CLOUD_FILE_STORAGE_ENABLED is set, avatars are uploaded to cloud storage with a different URL pattern.

@@ -1,10 +1,11 @@
+url: https://labelstud.io/
 theme_config:
-  tier: enterprise
-  root_domain: heartex.com
+  tier: opensource
+  root_domain: labelstud.io
 deploy:
   type: aws-s3
   region: us-east-1
-  bucket: docs.heartex.com
+  bucket: labelstud.io
 title: Label Studio
 subtitle: Data labeling, annotation and exploration tool
 description: >-
@@ -19,7 +20,6 @@ author: Heartex
 language: en
 timezone: null
 google_analytics: UA-129877673-4
-url: https://labelstud.io/
 root: /
 permalink: ':year/:month/:day/:title/'
 permalink_defaults: null
@@ -54,9 +54,12 @@ markdown:
   pedantic: false
   sanitize: false
   tables: true
-  breaks: true
+  breaks: false
   smartLists: true
   smartypants: true
+marked:
+  gfm: true
+  breaks: false
 index_generator:
   path: ''
   per_page: 10
@@ -73,7 +76,7 @@ plugins:
 theme: v2
 sitemap:
   path:
-    - sitemap-docs.xml
+    - guide/sitemap-docs.xml
 search:
   path: search.xml
   field: all
