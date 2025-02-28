@@ -1,11 +1,4 @@
-import {
-  APIAnnotation,
-  APIPrediction,
-  APITask,
-  LSFAnnotation,
-  LSFTaskData
-} from "../types/Task";
-import { FF_LSDV_5035, isFF } from "../utils/feature-flags";
+import type { APIAnnotation, APIPrediction, APITask, LSFAnnotation, LSFTaskData } from "../types/Task";
 
 /**
  * Converts the task from the server format to the
@@ -36,9 +29,7 @@ export const taskToLSFormat = (task: APITask): LSFTaskData | void => {
 };
 
 export const annotationToLSF = (annotation: APIAnnotation) => {
-  const createdDate = isFF(FF_LSDV_5035)
-    ? annotation.draft_created_at || annotation.created_at
-    : annotation.created_at;
+  const createdDate = annotation.draft_created_at || annotation.created_at;
 
   return {
     ...annotation,
@@ -63,9 +54,7 @@ export const predictionToLSF = (prediction: APIPrediction) => {
   };
 };
 
-export const annotationToServer = (
-  annotation: LSFAnnotation,
-): APIAnnotation => {
+export const annotationToServer = (annotation: LSFAnnotation): APIAnnotation => {
   return {
     ...annotation,
     id: Number(annotation.pk),

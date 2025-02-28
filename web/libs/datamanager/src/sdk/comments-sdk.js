@@ -8,12 +8,7 @@ export class CommentsSdk {
   }
 
   bindEventHandlers() {
-    [
-      'comments:create',
-      'comments:update',
-      'comments:delete',
-      'comments:list',
-    ].forEach((evt) => this.lsf.off(evt));
+    ["comments:create", "comments:update", "comments:delete", "comments:list"].forEach((evt) => this.lsf.off(evt));
 
     this.lsf.on("comments:create", this.createComment);
     this.lsf.on("comments:update", this.updateComment);
@@ -25,27 +20,29 @@ export class CommentsSdk {
     const body = {
       is_resolved: comment.is_resolved,
       text: comment.text,
+      region_ref: comment.region_ref,
+      classifications: comment.classifications,
     };
 
     if (comment.annotation) {
       body.annotation = comment.annotation;
-    } else if(isFF(FF_DEV_3034) && comment.draft) {
-      body.draft =  comment.draft;
+    } else if (isFF(FF_DEV_3034) && comment.draft) {
+      body.draft = comment.draft;
     }
     const { $meta: _, ...newComment } = await this.dm.apiCall("createComment", undefined, {
       body,
     });
 
     return newComment;
-  }
+  };
 
   updateComment = async (comment) => {
     if (!comment.id || comment.id < 0) return; // Don't allow an update with an incorrect id
 
-    const res = await this.dm.apiCall("updateComment", { id: comment.id }, {  body: comment });
+    const res = await this.dm.apiCall("updateComment", { id: comment.id }, { body: comment });
 
     return res;
-  }
+  };
 
   listComments = async (params) => {
     const listParams = {
@@ -70,18 +67,17 @@ export class CommentsSdk {
     });
 
     if (commentUsers.length) {
-      this.lsf.store.mergeUsers(commentUsers);
+      this.lsf.store.enrichUsers(commentUsers);
     }
 
     return comments;
-  }
+  };
 
   deleteComment = async (comment) => {
     if (!comment.id || comment.id < 0) return; // Don't allow an update with an incorrect id
 
-    const res = await this.dm.apiCall("deleteComment", { id: comment.id }, {  body: comment });
+    const res = await this.dm.apiCall("deleteComment", { id: comment.id }, { body: comment });
 
     return res;
-  }
+  };
 }
-
