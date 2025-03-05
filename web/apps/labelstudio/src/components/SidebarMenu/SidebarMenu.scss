@@ -1,0 +1,30 @@
+.sidebar-menu {
+  flex: 1;
+  display: flex;
+  max-height: calc(100vh - var(--header-height));
+
+  &__navigation {
+    width: calc(var(--menu-sidebar-width) + 1px);
+    display: flex;
+    
+    & .main-menu {
+      background: var(--sand_100);
+
+      &__item{
+        background: var(--sand_100);
+
+        &_active{
+          background: var(--sand_200);
+          pointer-events: all;
+        }
+      }
+    }
+  }
+
+  &__content {
+    flex: 1;
+    overflow: auto;
+    padding: 2rem;
+    box-shadow: -1px 0 0 0 rgb(0 0 0 / 10%);
+  }
+}

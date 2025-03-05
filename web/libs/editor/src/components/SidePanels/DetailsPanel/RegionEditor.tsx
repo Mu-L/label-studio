@@ -1,15 +1,27 @@
-import { observe } from 'mobx';
-import { observer } from 'mobx-react';
-import { getType, IAnyType, isLiteralType, isOptionalType, isPrimitiveType, isUnionType, types } from 'mobx-state-tree';
-import React, { ChangeEvent, FC, HTMLInputTypeAttribute, InputHTMLAttributes, KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { IconPropertyAngle } from '../../../assets/icons';
-import { Block, Elem, useBEM } from '../../../utils/bem';
-import './RegionEditor.styl';
-import { TimeDurationControl } from '../../TimeDurationControl/TimeDurationControl';
-import { FF_DEV_2715, isFF } from '../../../utils/feature-flags';
+import { observe } from "mobx";
+import { observer } from "mobx-react";
+import { type IAnyType, isLiteralType, isOptionalType, isPrimitiveType, isUnionType, types } from "mobx-state-tree";
+import {
+  type ChangeEvent,
+  type FC,
+  type HTMLInputTypeAttribute,
+  type InputHTMLAttributes,
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { Checkbox } from "@humansignal/ui";
+import { IconPropertyAngle } from "../../../assets/icons";
+import { Block, Elem, useBEM } from "../../../utils/bem";
+import { FF_DEV_2715, isFF } from "../../../utils/feature-flags";
+import { TimeDurationControl } from "../../TimeDurationControl/TimeDurationControl";
+import { TimelineRegionEditor } from "./TimelineRegionEditor";
+import "./RegionEditor.scss";
 
 interface RegionEditorProps {
-  region: any;
+  region: MSTRegion;
 }
 
 const getPrimitiveType = (type: IAnyType) => {
@@ -26,9 +38,12 @@ const getInputType = (type: any) => {
   const primitive = getPrimitiveType(type);
 
   switch (primitive) {
-    case 'number': return 'number';
-    case 'string': return 'text';
-    default: return 'text';
+    case "number":
+      return "number";
+    case "string":
+      return "text";
+    default:
+      return "text";
   }
 };
 
@@ -36,76 +51,76 @@ const IconMapping = {
   angle: IconPropertyAngle,
 };
 
-const RegionEditorComponent: FC<RegionEditorProps> = ({
-  region,
-}) => {
-  const fields: any[] = region.editableFields ?? [];
-  const isAudioModel = getType(region).name === 'AudioRegionModel';
-
-  const changeStartTimeHandler = (value: number) => {
-    region.setProperty('start', value);
-  };
-
-  const changeEndTimeHandler = (value: number) => {
-    region.setProperty('end', value);
-  };
-
-  const renderRegionProperty = () => (
-    <Elem name="wrapper">
-      {region.editorEnabled && fields.map((field: any, i) => {
-        return (
-          <RegionProperty
-            key={`${field.property}-${i}`}
-            property={field.property}
-            label={field.label}
-            region={region}
-          />
-        );
-      })}
-    </Elem>
-  );
-
-  const renderAudioTimeControls = () => {
-    return (
-      <Elem name="wrapper-time-control">
-        <TimeDurationControl
-          startTime={region.start}
-          endTime={region.end}
-          minTime={0}
-          maxTime={region?._ws_region?.duration}
-          isSidepanel={true}
-          onChangeStartTime={changeStartTimeHandler}
-          onChangeEndTime={changeEndTimeHandler}
-        />
-      </Elem>
-    );
-  };
+const RegionEditorComponent: FC<RegionEditorProps> = ({ region }) => {
+  const isAudioRegion = isFF(FF_DEV_2715) && region.type === "audioregion";
+  const isTimelineRegion = region.type === "timelineregion";
+  const Component = isTimelineRegion ? TimelineRegionEditor : isAudioRegion ? AudioRegionProperties : RegionProperties;
 
   return (
     <Block name="region-editor" mod={{ disabled: region.isReadOnly() }}>
-      {(isAudioModel && isFF(FF_DEV_2715)) ? renderAudioTimeControls() : renderRegionProperty()}
+      <Component region={region} />
     </Block>
+  );
+};
+
+const RegionProperties = ({ region }: RegionEditorProps) => {
+  const fields = region.editableFields ?? [];
+
+  return (
+    <Elem name="wrapper">
+      {region.editorEnabled &&
+        fields.map((field, i) => {
+          return (
+            <RegionProperty
+              key={`${field.property}-${i}`}
+              property={field.property}
+              label={field.label}
+              region={region}
+            />
+          );
+        })}
+    </Elem>
+  );
+};
+
+const AudioRegionProperties = ({ region }: { region: any }) => {
+  const changeStartTimeHandler = (value: number) => {
+    region.setProperty("start", value);
+  };
+
+  const changeEndTimeHandler = (value: number) => {
+    region.setProperty("end", value);
+  };
+
+  return (
+    <Elem name="wrapper-time-control">
+      <TimeDurationControl
+        startTime={region.start}
+        endTime={region.end}
+        minTime={0}
+        maxTime={region?._ws_region?.duration}
+        isSidepanel={true}
+        onChangeStartTime={changeStartTimeHandler}
+        onChangeEndTime={changeEndTimeHandler}
+        showLabels
+        showDuration
+      />
+    </Elem>
   );
 };
 
 interface RegionPropertyProps {
   property: string;
   label: string;
-  region: any;
+  region: MSTRegion;
 }
 
-const RegionProperty: FC<RegionPropertyProps> = ({
-  property,
-  label,
-  region,
-}) => {
+const RegionProperty: FC<RegionPropertyProps> = ({ property, label, region }) => {
   const block = useBEM();
   const [value, setValue] = useState(region.getProperty(property));
 
   const propertyType = useMemo(() => {
-    const regionType = getType(region);
-
-    return (regionType as any).properties[property];
+    return region.getPropertyType(property);
   }, [region, property]);
 
   const isPrimitive = useMemo(() => {
@@ -115,7 +130,7 @@ const RegionProperty: FC<RegionPropertyProps> = ({
   const options = useMemo(() => {
     if (isPrimitive) return null;
 
-    let result: any[] | null = null;
+    let result: string[] | null = null;
     const isEnum = isUnionType(propertyType);
 
     if (isEnum) {
@@ -132,22 +147,23 @@ const RegionProperty: FC<RegionPropertyProps> = ({
   const isBoolean = useMemo(() => {
     if (!isPrimitive) return false;
 
-    const coreType = isOptionalType(propertyType)
-      ? propertyType.getSubTypes()
-      : propertyType;
+    const coreType = isOptionalType(propertyType) ? propertyType.getSubTypes() : propertyType;
 
     return coreType === types.boolean;
   }, [propertyType, isPrimitive]);
 
-  const onChangeHandler = useCallback((value) => {
-    if (value !== region.getProperty(property)) {
-      try {
-        region.setProperty(property, value);
-      } catch (err) {
-        console.error(err);
+  const onChangeHandler = useCallback(
+    (value) => {
+      if (value !== region.getProperty(property)) {
+        try {
+          region.setProperty(property, value);
+        } catch (err) {
+          console.error(err);
+        }
       }
-    }
-  }, [propertyType, isBoolean]);
+    },
+    [propertyType, isBoolean],
+  );
 
   useEffect(() => {
     const cancelObserve = observe(region, property, ({ newValue, oldValue }) => {
@@ -159,10 +175,9 @@ const RegionProperty: FC<RegionPropertyProps> = ({
 
   return (
     <Elem name="property" tag="label">
-      { isBoolean ? (
-        <input
-          className={block?.elem('input').toClassName()}
-          type="checkbox"
+      {isBoolean ? (
+        <Checkbox
+          className={block?.elem("input").toClassName()}
           checked={value}
           onChange={(e) => onChangeHandler(e.target.checked)}
         />
@@ -177,12 +192,16 @@ const RegionProperty: FC<RegionPropertyProps> = ({
         <select
           value={value}
           onChange={(e) => onChangeHandler(e.target.value)}
-          className={block?.elem('select').toClassName()}
+          className={block?.elem("select").toClassName()}
         >
-          {options.map((value, i) => <option key={`${value}-${i}`} value={value}>{value}</option>)}
+          {options.map((value, i) => (
+            <option key={`${value}-${i}`} value={value}>
+              {value}
+            </option>
+          ))}
         </select>
       ) : null}
-      <PropertyLabel label={label}/>
+      <PropertyLabel label={label} />
     </Elem>
   );
 };
@@ -192,64 +211,66 @@ interface RegionInputProps extends InputHTMLAttributes<HTMLInputElement> {
   onChange?: (newValue: any) => void;
 }
 
-const RegionInput: FC<RegionInputProps> = ({
-  onChange: onChangeValue,
-  type,
-  value,
-  step,
-  ...props
-}) => {
+const RegionInput: FC<RegionInputProps> = ({ onChange: onChangeValue, type, value, step, ...props }) => {
   const block = useBEM();
   const [currentValue, setValue] = useState(value);
 
-  const updateValue = useCallback((value, safeValue = true) => {
-    const newValue = value;
+  const updateValue = useCallback(
+    (value, safeValue = true) => {
+      const newValue = value;
 
-    setValue(newValue);
-    if (safeValue) onChangeValue?.(newValue);
-  }, [onChangeValue, type]);
+      setValue(newValue);
+      if (safeValue) onChangeValue?.(newValue);
+    },
+    [onChangeValue, type],
+  );
 
-  const onChangeHandler = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    let value: number | string = e.target.value;
-    let safeValue = true;
+  const onChangeHandler = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      let value: number | string = e.target.value;
+      let safeValue = true;
 
+      if (type === "number") {
+        if (!value.match(/^([0-9,.]+)$/gi)) {
+          safeValue = false;
+        }
 
-    if (type === 'number') {
-      if (!value.match(/^([0-9,.]+)$/ig)) {
-        safeValue = false;
+        if (value.match(/(,|\.)$/)) {
+          value = value.replace(/,/, ".");
+          safeValue = false;
+        }
+
+        if (safeValue) {
+          value = Number.parseFloat(value);
+        }
       }
 
-      if (value.match(/(,|\.)$/)) {
-        value = value.replace(/,/, '.');
-        safeValue = false;
+      updateValue(value, safeValue);
+    },
+    [updateValue, type],
+  );
+
+  const onKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLInputElement>) => {
+      if (type !== "number") return;
+
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+
+        const step = e.altKey && e.shiftKey ? 0.01 : e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
+        let newValue = Number(currentValue);
+
+        if (e.key === "ArrowUp") {
+          newValue += step;
+        } else {
+          newValue -= step;
+        }
+
+        updateValue(newValue);
       }
-
-      if (safeValue) {
-        value = parseFloat(value);
-      }
-    }
-
-    updateValue(value, safeValue);
-  }, [updateValue, type]);
-
-  const onKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
-    if (type !== 'number') return;
-
-    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-      e.preventDefault();
-
-      const step = (e.altKey && e.shiftKey) ? 0.01 : e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
-      let newValue = Number(currentValue);
-
-      if (e.key === 'ArrowUp') {
-        newValue += step;
-      } else {
-        newValue -= step;
-      }
-
-      updateValue(newValue);
-    }
-  }, [currentValue, type, step]);
+    },
+    [currentValue, type, step],
+  );
 
   useEffect(() => {
     updateValue(value);
@@ -258,7 +279,7 @@ const RegionInput: FC<RegionInputProps> = ({
   return (
     <input
       {...props}
-      className={block?.elem('input').toClassName()}
+      className={block?.elem("input").toClassName()}
       type="text"
       step={step}
       onChange={onChangeHandler}
@@ -268,10 +289,10 @@ const RegionInput: FC<RegionInputProps> = ({
   );
 };
 
-const PropertyLabel: FC<{label: string}> = ({ label }) => {
+const PropertyLabel: FC<{ label: string }> = ({ label }) => {
   const IconComponent = useMemo(() => {
-    if (label.startsWith('icon:')) {
-      const iconName = label.split(':')[1] as keyof typeof IconMapping;
+    if (label.startsWith("icon:")) {
+      const iconName = label.split(":")[1] as keyof typeof IconMapping;
 
       return IconMapping[iconName] ?? null;
     }
@@ -280,7 +301,9 @@ const PropertyLabel: FC<{label: string}> = ({ label }) => {
   }, [label]);
 
   return (
-    <Elem name="text" tag="span">{IconComponent ? <IconComponent/> : label}</Elem>
+    <Elem name="text" tag="span">
+      {IconComponent ? <IconComponent /> : label}
+    </Elem>
   );
 };
 

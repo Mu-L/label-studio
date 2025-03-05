@@ -16,11 +16,7 @@ const positioner = (source, target) => {
       return sourcePosition.top + sourcePosition.height;
     },
     get horizontalCenter() {
-      return (
-        sourcePosition.left +
-        sourcePosition.width / 2 -
-        targetPosition.width / 2
-      );
+      return sourcePosition.left + sourcePosition.width / 2 - targetPosition.width / 2;
     },
     get horizontalLeft() {
       return sourcePosition.left;
@@ -31,12 +27,12 @@ const positioner = (source, target) => {
   };
 };
 
-export const alignElements = (elem, target, align, padding = 0) => {
+export const alignElements = (elem, target, align, padding = 0, openUpwardForShortViewport = true) => {
   let offsetLeft = 0;
   let offsetTop = 0;
 
   const pos = positioner(elem, target);
-  let resultAlign = align.split('-');
+  const resultAlign = align.split("-");
 
   switch (align) {
     case "top-center":
@@ -71,24 +67,21 @@ export const alignElements = (elem, target, align, padding = 0) => {
       break;
   }
 
-  if (offsetTop < window.scrollX) {
+  if (offsetTop < window.scrollY) {
     offsetTop = pos.bottom + padding;
-    resultAlign[0] = 'bottom';
-  } else if (
-    offsetTop + pos.target.height >
-    window.scrollX + window.innerHeight
-  ) {
+    resultAlign[0] = "bottom";
+  } else if (openUpwardForShortViewport && offsetTop + pos.target.height > window.scrollY + window.innerHeight) {
     offsetTop = pos.top - padding;
-    resultAlign[0] = 'top';
+    resultAlign[0] = "top";
   }
 
   if (offsetLeft < 0) {
     offsetLeft = pos.horizontalLeft;
-    resultAlign[1] = 'left';
+    resultAlign[1] = "left";
   } else if (offsetLeft + pos.target.width > window.innerWidth) {
     offsetLeft = pos.horizontalRight;
-    resultAlign[1] = 'right';
+    resultAlign[1] = "right";
   }
 
-  return { top: offsetTop, left: offsetLeft, pos, align: resultAlign.join('-') };
+  return { top: offsetTop, left: offsetLeft, pos, align: resultAlign.join("-") };
 };

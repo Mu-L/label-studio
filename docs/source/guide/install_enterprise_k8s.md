@@ -1,13 +1,14 @@
 ---
 title: Deploy Label Studio Enterprise on Kubernetes
-short: Kubernetes
+short: Install using Kubernetes
 tier: enterprise
 type: guide
 order: 0
-order_enterprise: 455
+order_enterprise: 69
 meta_title: Deploy Label Studio Enterprise on Kubernetes
 meta_description: Deploy Label Studio Enterprise on Kubernetes, such as on Amazon Elastic Container Service for Kubernetes, to create machine learning and data science projects in a scalable containerized environment. 
-section: "Install"
+section: "Install & Setup"
+parent_enterprise: "install_enterprise"
 
 ---
 
@@ -46,7 +47,7 @@ If you want to install Label Studio Enterprise on Kubernetes and you have unrest
 9. (Optional) [Set up TLS for Redis](#Optional-set-up-TLS-for-Redis)
 10. [Use Helm to install Label Studio Enterprise on your Kubernetes cluster](#Use-Helm-to-install-Label-Studio-Enterprise-on-your-Kubernetes-cluster).
 
-If you use a proxy to access the internet from your Kubernetes cluster, or it is airgapped from the internet, see how to [Install Label Studio Enterprise without public internet access](install_airgapped.html).
+If you use a proxy to access the internet from your Kubernetes cluster, or it is airgapped from the internet, see how to [Install Label Studio Enterprise without public internet access](install_k8s_airgapped.html).
 
 ### Required software prerequisites
 
