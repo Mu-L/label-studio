@@ -1,6 +1,6 @@
 {
-  "message": "Merge branch 'develop' into 'fb-HUMSIG-37-visuals'",
-  "commit": "309851f803a1995c36b11f416f80cff709b6be2f",
-  "date": "2024-04-04T16:34:09.000Z",
-  "branch": "fb-HUMSIG-37-visuals"
+  "message": "fix: DIA-2022: UI&UX | Issue with zoom functionality in Label Studio labelling UI (#7182)",
+  "commit": "f59505dbbe1b9f4eb7433a872f6f354fbc8b1f43",
+  "date": "2025-03-07T18:30:10.000Z",
+  "branch": "develop"
 }

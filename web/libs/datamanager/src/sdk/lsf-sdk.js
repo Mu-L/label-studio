@@ -17,17 +17,17 @@ import {
   FF_DEV_2186,
   FF_DEV_2887,
   FF_DEV_3034,
-  FF_DEV_3734,
   FF_LSDV_4620_3_ML,
   FF_OPTIC_2,
-  isFF
+  FF_REGION_VISIBILITY_FROM_URL,
+  isFF,
 } from "../utils/feature-flags";
 import { isDefined } from "../utils/utils";
 import { Modal } from "../components/Common/Modal/Modal";
 import { CommentsSdk } from "./comments-sdk";
 // import { LSFHistory } from "./lsf-history";
 import { annotationToServer, taskToLSFormat } from "./lsf-utils";
-import { when } from 'mobx';
+import { when } from "mobx";
 
 const DEFAULT_INTERFACES = [
   "basic",
@@ -48,7 +48,8 @@ let LabelStudioDM;
 const resolveLabelStudio = async () => {
   if (LabelStudioDM) {
     return LabelStudioDM;
-  } else if (window.LabelStudio) {
+  }
+  if (window.LabelStudio) {
     return (LabelStudioDM = window.LabelStudio);
   }
 };
@@ -88,15 +89,29 @@ export class LSFWrapper {
    * @param {LSFOptions} options
    */
   constructor(dm, element, options) {
+    // we need to pass the rest of the options to LSF below
+    const {
+      task,
+      preload,
+      isLabelStream,
+      annotation,
+      interfacesModifier,
+      isInteractivePreannotations,
+      user,
+      keymap,
+      messages,
+      ...restOptions
+    } = options;
+
     this.datamanager = dm;
     this.store = dm.store;
     this.root = element;
-    this.task = options.task;
-    this.preload = options.preload;
-    this.labelStream = options.isLabelStream ?? false;
-    this.initialAnnotation = options.annotation;
-    this.interfacesModifier = options.interfacesModifier;
-    this.isInteractivePreannotations = options.isInteractivePreannotations ?? false;
+    this.task = task;
+    this.preload = preload;
+    this.labelStream = isLabelStream ?? false;
+    this.initialAnnotation = annotation;
+    this.interfacesModifier = interfacesModifier;
+    this.isInteractivePreannotations = isInteractivePreannotations ?? false;
 
     let interfaces = [...DEFAULT_INTERFACES];
 
@@ -104,9 +119,13 @@ export class LSFWrapper {
       interfaces.push("annotations:deny-empty");
     }
 
+    if (window.APP_SETTINGS.annotator_reviewer_firewall_enabled && this.labelStream) {
+      interfaces.push("annotations:hide-info");
+    }
+
     if (this.labelStream) {
       interfaces.push("infobar");
-      interfaces.push("topbar:prevnext");
+      if (!window.APP_SETTINGS.label_stream_navigation_disabled) interfaces.push("topbar:prevnext");
       if (FF_DEV_2186 && this.project.review_settings?.require_comment_on_reject) {
         interfaces.push("comments:update");
       }
@@ -122,44 +141,47 @@ export class LSFWrapper {
         "annotations:tabs",
         "predictions:tabs",
       );
+      if (isFF(FF_REGION_VISIBILITY_FROM_URL)) {
+        interfaces.push("annotations:copy-link");
+      }
     }
 
-    if (this.datamanager.hasInterface('instruction')) {
-      interfaces.push('instruction');
+    if (this.datamanager.hasInterface("instruction")) {
+      interfaces.push("instruction");
     }
 
-    if (!this.labelStream && this.datamanager.hasInterface('groundTruth')) {
-      interfaces.push('ground-truth');
+    if (!this.labelStream && this.datamanager.hasInterface("groundTruth")) {
+      interfaces.push("ground-truth");
     }
 
     if (this.datamanager.hasInterface("autoAnnotation")) {
       interfaces.push("auto-annotation");
     }
+
+    if (isFF(FF_DEV_2887)) {
+      interfaces.push("annotations:comments");
+      interfaces.push("comments:resolve-any");
+    }
+
+    if (this.project.review_settings?.require_comment_on_reject) {
+      interfaces.push("comments:reject");
+    }
+
     if (this.interfacesModifier) {
       interfaces = this.interfacesModifier(interfaces, this.labelStream);
     }
-    if (isFF(FF_DEV_2887)) {
-      interfaces.push("annotations:comments");
-    }
-
-    console.group("Interfaces");
-    console.log([...interfaces]);
 
     if (!this.shouldLoadNext()) {
       interfaces = interfaces.filter((item) => {
-        return ![
-          "topbar:prevnext",
-          "skip",
-        ].includes(item);
+        return !["topbar:prevnext", "skip"].includes(item);
       });
     }
 
-    console.log([...interfaces]);
-    console.groupEnd();
     const queueTotal = dm.store.project.reviewer_queue_total || dm.store.project.queue_total;
     const queueDone = dm.store.project.queue_done;
     const queueLeft = dm.store.project.queue_left;
     const queuePosition = queueDone ? queueDone + 1 : queueLeft ? queueTotal - queueLeft + 1 : 1;
+    const commentClassificationConfig = dm.store.project.comment_classification_config;
 
     const lsfProperties = {
       user: options.user,
@@ -167,13 +189,14 @@ export class LSFWrapper {
       task: taskToLSFormat(this.task),
       description: this.instruction,
       interfaces,
-      users: dm.store.users.map(u => u.toJSON()),
+      users: dm.store.users.map((u) => u.toJSON()),
       keymap: options.keymap,
       forceAutoAnnotation: this.isInteractivePreannotations,
       forceAutoAcceptSuggestions: this.isInteractivePreannotations,
       messages: options.messages,
       queueTotal,
       queuePosition,
+      commentClassificationConfig,
 
       /* EVENTS */
       onSubmitDraft: this.onSubmitDraft,
@@ -192,6 +215,8 @@ export class LSFWrapper {
       onSelectAnnotation: this.onSelectAnnotation,
       onNextTask: this.onNextTask,
       onPrevTask: this.onPrevTask,
+
+      ...restOptions,
     };
 
     this.initLabelStudio(lsfProperties);
@@ -204,21 +229,21 @@ export class LSFWrapper {
 
       this.lsfInstance = new LSF(this.root, settings);
 
-      this.lsfInstance.on('presignUrlForProject', this.onPresignUrlForProject);
+      this.lsfInstance.on("presignUrlForProject", this.onPresignUrlForProject);
 
-      const names = Array.from(this.datamanager.callbacks.keys())
-        .filter(k => k.startsWith('lsf:'));
+      const names = Array.from(this.datamanager.callbacks.keys()).filter((k) => k.startsWith("lsf:"));
 
-      names.forEach(name => {
-        this.datamanager.getEventCallbacks(name).forEach(clb => {
-          this.lsfInstance.on(name.replace(/^lsf:/, ''), clb);
+      names.forEach((name) => {
+        this.datamanager.getEventCallbacks(name).forEach((clb) => {
+          this.lsfInstance.on(name.replace(/^lsf:/, ""), clb);
         });
       });
-
 
       if (isFF(FF_DEV_2887)) {
         new CommentsSdk(this.lsfInstance, this.datamanager);
       }
+
+      this.datamanager.invoke("lsfInit", this, this.lsfInstance);
     } catch (err) {
       console.error("Failed to initialize LabelStudio", settings);
       console.error(err);
@@ -227,12 +252,9 @@ export class LSFWrapper {
 
   /** @private */
   async preloadTask() {
-    const {
-      comment: commentId,
-      task: taskID,
-    } = this.preload;
+    const { comment: commentId, task: taskID } = this.preload;
     const api = this.datamanager.api;
-    let params = { taskID };
+    const params = { taskID };
 
     if (commentId) {
       params.with_comment = commentId;
@@ -241,7 +263,7 @@ export class LSFWrapper {
     if (params) {
       const task = await api.call("task", { params });
       const noData = !task || (!task.annotations?.length && !task.drafts?.length);
-      const body = `Task #${taskID}${commentId ? ` with comment #${commentId}` : ``} was not found!`;
+      const body = `Task #${taskID}${commentId ? ` with comment #${commentId}` : ""} was not found!`;
 
       if (noData) {
         Modal.modal({
@@ -309,7 +331,7 @@ export class LSFWrapper {
   }
 
   exitStream() {
-    this.datamanager.invoke("navigate", 'projects');
+    this.datamanager.invoke("navigate", "projects");
   }
 
   selectTask(task, annotationID, fromHistory = false) {
@@ -327,9 +349,9 @@ export class LSFWrapper {
     this.setLSFTask(task, annotationID, fromHistory);
   }
 
-  setLSFTask(task, annotationID, fromHistory) {
+  setLSFTask(task, annotationID, fromHistory, selectPrediction = false) {
     if (!this.lsf) return;
-    
+
     const hasChangedTasks = this.lsf?.task?.id !== task?.id && task?.id;
 
     this.setLoading(true, hasChangedTasks);
@@ -338,10 +360,10 @@ export class LSFWrapper {
     const taskList = this.datamanager.store.taskStore.list;
     // annotations are set in LSF only and order in DM only, so combine them
     const taskHistory = taskList
-      .map(task => this.taskHistory.find(item => item.taskId === task.id))
+      .map((task) => this.taskHistory.find((item) => item.taskId === task.id))
       .filter(Boolean);
 
-    const extracted = taskHistory.find(item => item.taskId === task.id);
+    const extracted = taskHistory.find((item) => item.taskId === task.id);
 
     if (!fromHistory && extracted) {
       taskHistory.splice(taskHistory.indexOf(extracted), 1);
@@ -369,19 +391,19 @@ export class LSFWrapper {
 
     // undefined or true for backward compatibility
     this.lsf.toggleInterface("postpone", this.task.allow_postpone !== false);
-    this.lsf.toggleInterface("topbar:task-counter", !isFF(FF_DEV_3734));
+    this.lsf.toggleInterface("topbar:task-counter", true);
     this.lsf.assignTask(task);
     this.lsf.initializeStore(lsfTask);
-    this.setAnnotation(annotationID, fromHistory || isRejectedQueue);
+    this.setAnnotation(annotationID, fromHistory || isRejectedQueue, selectPrediction);
     this.setLoading(false);
   }
 
   /** @private */
-  setAnnotation(annotationID, selectAnnotation = false) {
+  setAnnotation(annotationID, selectAnnotation = false, selectPrediction = false) {
     const id = annotationID ? annotationID.toString() : null;
-    let { annotationStore: cs } = this.lsf;
+    const { annotationStore: cs } = this.lsf;
     let annotation;
-    const activeDrafts = cs.annotations.map(a => a.draftId).filter(Boolean);
+    const activeDrafts = cs.annotations.map((a) => a.draftId).filter(Boolean);
 
     if (this.task.drafts) {
       for (const draft of this.task.drafts) {
@@ -392,7 +414,7 @@ export class LSFWrapper {
           // Annotation existed - add draft to existed annotation
           const draftAnnotationPk = String(draft.annotation);
 
-          c = cs.annotations.find(c => c.pk === draftAnnotationPk);
+          c = cs.annotations.find((c) => c.pk === draftAnnotationPk);
           if (c) {
             c.history.freeze();
             c.addVersions({ draft: draft.result });
@@ -441,8 +463,12 @@ export class LSFWrapper {
         annotation = cs.createAnnotation();
       }
     } else {
-      if (this.annotations.length === 0 && this.predictions.length > 0 && !this.isInteractivePreannotations) {
-        annotation = cs.addAnnotationFromPrediction(this.predictions[0]);
+      if (selectPrediction) {
+        annotation = this.predictions.find((p) => p.pk === id);
+        annotation ??= first; // if prediction not found, select first annotation and resume existing behaviour
+      } else if (this.annotations.length === 0 && this.predictions.length > 0 && !this.isInteractivePreannotations) {
+        const predictionByModelVersion = this.predictions.find((p) => p.createdBy === this.project.model_version);
+        annotation = cs.addAnnotationFromPrediction(predictionByModelVersion ?? this.predictions[0]);
       } else if (this.annotations.length > 0 && id && id !== "auto") {
         annotation = this.annotations.find((c) => c.pk === id || c.id === id);
       } else if (this.annotations.length > 0 && (id === "auto" || hasAutoAnnotations)) {
@@ -452,9 +478,15 @@ export class LSFWrapper {
       }
     }
 
-
     if (annotation) {
-      cs.selectAnnotation(annotation.id);
+      // We want to be sure this is explicitly understood to be a prediction and the
+      // user wants to select it directly
+      if (selectPrediction && annotation.type === "prediction") {
+        cs.selectPrediction(annotation.id);
+      } else {
+        // Otherwise we default the behaviour to being as was before
+        cs.selectAnnotation(annotation.id);
+      }
       this.datamanager.invoke("annotationSet", annotation);
     }
   }
@@ -479,21 +511,21 @@ export class LSFWrapper {
     if (!body.length) return;
 
     await this.datamanager.apiCall("saveUserLabels", {}, { body });
-  }
+  };
 
   async loadUserLabels() {
     if (!this.lsf?.userLabels) return;
 
-    const userLabels = await this.datamanager.apiCall(
-      "userLabelsForProject",
-      { project: this.project.id, expand: "label" },
-    );
+    const userLabels = await this.datamanager.apiCall("userLabelsForProject", {
+      project: this.project.id,
+      expand: "label",
+    });
 
     if (!userLabels) return;
 
     const controls = {};
 
-    for (const result of (userLabels.results ?? [])) {
+    for (const result of userLabels.results ?? []) {
       // don't trust server's response!
       if (!result?.label?.value?.length) continue;
 
@@ -512,7 +544,7 @@ export class LSFWrapper {
 
     if (!this.lsf.task) this.setLoading(true);
 
-    const _taskHistory =  await this.datamanager.store.taskStore.loadTaskHistory({
+    const _taskHistory = await this.datamanager.store.taskStore.loadTaskHistory({
       projectId: this.datamanager.store.project.id,
     });
 
@@ -561,28 +593,34 @@ export class LSFWrapper {
 
       this.setAnnotation(annotationID);
     }
-  }
+  };
 
   /** @private */
   onSubmitAnnotation = async () => {
     const exitStream = this.shouldExitStream();
     const loadNext = exitStream ? false : this.shouldLoadNext();
-    const result = await this.submitCurrentAnnotation("submitAnnotation", async (taskID, body) => {
-      return await this.datamanager.apiCall(
-        "submitAnnotation",
-        { taskID },
-        { body },
-        // don't react on duplicated annotations error
-        { errorHandler: result => result.status === 409 },
-      );
-    }, false, loadNext);
+    const result = await this.submitCurrentAnnotation(
+      "submitAnnotation",
+      async (taskID, body) => {
+        return await this.datamanager.apiCall(
+          "submitAnnotation",
+          { taskID },
+          { body },
+          // don't react on duplicated annotations error
+          { errorHandler: (result) => result.status === 409 },
+        );
+      },
+      false,
+      loadNext,
+    );
     const status = result?.$meta?.status;
 
-    if (status === 200 || status === 201) this.datamanager.invoke("toast", { message: "Annotation saved successfully", type: "info" });
-    else if (status !== undefined) this.datamanager.invoke("toast", { message: "There was an error saving your Annotation", type: "error" });
+    if (status === 200 || status === 201)
+      this.datamanager.invoke("toast", { message: "Annotation saved successfully", type: "info" });
+    else if (status !== undefined)
+      this.datamanager.invoke("toast", { message: "There was an error saving your Annotation", type: "error" });
 
     if (exitStream) return this.exitStream();
-
   };
 
   /** @private */
@@ -609,12 +647,14 @@ export class LSFWrapper {
     });
     const status = result?.$meta?.status;
 
-    if (status === 200 || status === 201) this.datamanager.invoke("toast", { message: "Annotation updated successfully", type: "info" });
-    else if (status !== undefined) this.datamanager.invoke("toast", { message: "There was an error updating your Annotation", type: "error" });
+    if (status === 200 || status === 201)
+      this.datamanager.invoke("toast", { message: "Annotation updated successfully", type: "info" });
+    else if (status !== undefined)
+      this.datamanager.invoke("toast", { message: "There was an error updating your Annotation", type: "error" });
 
     this.datamanager.invoke("updateAnnotation", ls, annotation, result);
 
-    if (exitStream) return  this.exitStream();
+    if (exitStream) return this.exitStream();
 
     const isRejectedQueue = isDefined(task.default_selected_annotation);
 
@@ -633,7 +673,7 @@ export class LSFWrapper {
 
     this.task.deleteDraft(id);
     return response;
-  }
+  };
 
   /**@private */
   onDeleteAnnotation = async (ls, annotation) => {
@@ -669,15 +709,21 @@ export class LSFWrapper {
   };
 
   draftToast = (status) => {
-    if (status === 200 || status === 201) this.datamanager.invoke("toast", { message: "Draft saved successfully", type: "info" });
-    else if (status !== undefined) this.datamanager.invoke("toast", { message: "There was an error saving your draft", type: "error" });
-  }
+    if (status === 200 || status === 201)
+      this.datamanager.invoke("toast", { message: "Draft saved successfully", type: "info" });
+    else if (status !== undefined)
+      this.datamanager.invoke("toast", { message: "There was an error saving your draft", type: "error" });
+  };
 
   needsDraftSave = (annotation) => {
     if (annotation.history?.hasChanges && !annotation.draftSaved) return true;
-    if (annotation.history?.hasChanges && new Date(annotation.history.lastAdditionTime) > new Date(annotation.draftSaved)) return true;
+    if (
+      annotation.history?.hasChanges &&
+      new Date(annotation.history.lastAdditionTime) > new Date(annotation.draftSaved)
+    )
+      return true;
     return false;
-  }
+  };
 
   saveDraft = async (target = null) => {
     const selected = target || this.lsf?.annotationStore?.selected;
@@ -686,24 +732,23 @@ export class LSFWrapper {
     if (selected?.isDraftSaving) {
       await when(() => !selected.isDraftSaving);
       this.draftToast(200);
-    }
-    else if (hasChanges && selected) {
+    } else if (hasChanges && selected) {
       const res = await selected?.saveDraftImmediatelyWithResults();
       const status = res?.$meta?.status;
 
       this.draftToast(status);
     }
-  };  
+  };
 
   onSubmitDraft = async (studio, annotation, params = {}) => {
     const annotationDoesntExist = !annotation.pk;
-    const data = { body: this.prepareData(annotation, { draft: true }) }; // serializedAnnotation
+    const data = { body: this.prepareData(annotation, { isNewDraft: true }) }; // serializedAnnotation
     const hasChanges = this.needsDraftSave(annotation);
     const showToast = params?.useToast && hasChanges;
     // console.log('onSubmitDraft', params?.useToast, hasChanges);
 
     if (params?.useToast) delete params.useToast;
-    
+
     Object.assign(data.body, params);
 
     await this.saveUserLabels();
@@ -711,27 +756,25 @@ export class LSFWrapper {
     if (annotation.draftId > 0) {
       // draft has been already created
       const res = await this.datamanager.apiCall("updateDraft", { draftID: annotation.draftId }, data);
-      
+
       showToast && this.draftToast(res?.$meta?.status);
       return res;
-
-    } else {
-      let response;
-
-      if (annotationDoesntExist) {
-        response = await this.datamanager.apiCall("createDraftForTask", { taskID: this.task.id }, data);
-      } else {
-        response = await this.datamanager.apiCall(
-          "createDraftForAnnotation",
-          { taskID: this.task.id, annotationID: annotation.pk },
-          data,
-        );
-      }
-      response?.id && annotation.setDraftId(response?.id);
-      showToast && this.draftToast(response?.$meta?.status);
-
-      return response;
     }
+    let response;
+
+    if (annotationDoesntExist) {
+      response = await this.datamanager.apiCall("createDraftForTask", { taskID: this.task.id }, data);
+    } else {
+      response = await this.datamanager.apiCall(
+        "createDraftForAnnotation",
+        { taskID: this.task.id, annotationID: annotation.pk },
+        data,
+      );
+    }
+    response?.id && annotation.setDraftId(response?.id);
+    showToast && this.draftToast(response?.$meta?.status);
+
+    return response;
   };
 
   onSkipTask = async (_, { comment } = {}) => {
@@ -747,10 +790,9 @@ export class LSFWrapper {
 
         if (id === undefined) {
           return this.datamanager.apiCall("submitAnnotation", params, options);
-        } else {
-          params.annotationID = id;
-          return this.datamanager.apiCall("updateAnnotation", params, options);
         }
+        params.annotationID = id;
+        return this.datamanager.apiCall("updateAnnotation", params, options);
       },
       true,
       this.shouldLoadNext(),
@@ -761,30 +803,38 @@ export class LSFWrapper {
     const { task, currentAnnotation } = this;
 
     if (!isDefined(currentAnnotation) && !isDefined(currentAnnotation.pk)) {
-      console.error('Annotation must be on unskip');
+      console.error("Annotation must be on unskip");
       return;
     }
 
     await this.withinLoadingState(async () => {
       currentAnnotation.pauseAutosave();
 
-      if(isFF(FF_DEV_3034)) {
+      if (isFF(FF_DEV_3034)) {
         await this.datamanager.apiCall("convertToDraft", {
           annotationID: currentAnnotation.pk,
         });
       } else {
         if (currentAnnotation.draftId > 0) {
-          await this.datamanager.apiCall("updateDraft", {
-            draftID: currentAnnotation.draftId,
-          }, {
-            body: { annotation: null },
-          });
+          await this.datamanager.apiCall(
+            "updateDraft",
+            {
+              draftID: currentAnnotation.draftId,
+            },
+            {
+              body: { annotation: null },
+            },
+          );
         } else {
           const annotationData = { body: this.prepareData(currentAnnotation) };
 
-          await this.datamanager.apiCall("createDraftForTask", {
-            taskID: this.task.id,
-          }, annotationData);
+          await this.datamanager.apiCall(
+            "createDraftForTask",
+            {
+              taskID: this.task.id,
+            },
+            annotationData,
+          );
         }
 
         // Carry over any comments to when the annotation draft is eventually submitted
@@ -806,10 +856,10 @@ export class LSFWrapper {
     if (!this.labelStream) return false;
 
     // validating if URL is from notification, in case of notification it shouldn't load next task
-    const urlParam = new URLSearchParams(location.search).get('interaction');
+    const urlParam = new URLSearchParams(location.search).get("interaction");
 
-    return urlParam !== 'notifications';
-  }
+    return urlParam !== "notifications";
+  };
 
   shouldExitStream = () => {
     const paramName = "exitStream";
@@ -819,16 +869,18 @@ export class LSFWrapper {
     searchParams.delete(paramName);
     let newRelativePathQuery = window.location.pathname;
 
-    if (searchParams.toString()) newRelativePathQuery += '?' + searchParams.toString();
-    window.history.pushState(null, '', newRelativePathQuery);
+    if (searchParams.toString()) newRelativePathQuery += `?${searchParams.toString()}`;
+    window.history.pushState(null, "", newRelativePathQuery);
     return !!urlParam;
-  }
-
+  };
 
   // Proxy events that are unused by DM integration
   onEntityCreate = (...args) => this.datamanager.invoke("onEntityCreate", ...args);
   onEntityDelete = (...args) => this.datamanager.invoke("onEntityDelete", ...args);
   onSelectAnnotation = (prevAnnotation, nextAnnotation, options) => {
+    if (window.APP_SETTINGS.read_only_quick_view_enabled && !this.labelStream) {
+      prevAnnotation?.setEditable(false);
+    }
     if (isFF(FF_OPTIC_2) && !!nextAnnotation?.history?.undoIdx) {
       this.saveDraft(nextAnnotation).then(() => {
         this.datamanager.invoke("onSelectAnnotation", prevAnnotation, nextAnnotation, options, this);
@@ -836,16 +888,16 @@ export class LSFWrapper {
     } else {
       this.datamanager.invoke("onSelectAnnotation", prevAnnotation, nextAnnotation, options, this);
     }
-  }
+  };
 
   onNextTask = async (nextTaskId, nextAnnotationId) => {
     if (isFF(FF_OPTIC_2)) this.saveDraft();
     this.loadTask(nextTaskId, nextAnnotationId, true);
-  }
+  };
   onPrevTask = async (prevTaskId, prevAnnotationId) => {
     if (isFF(FF_OPTIC_2)) this.saveDraft();
     this.loadTask(prevTaskId, prevAnnotationId, true);
-  }
+  };
   async submitCurrentAnnotation(eventName, submit, includeId = false, loadNext = true) {
     const { taskID, currentAnnotation } = this;
     const unique_id = this.task.unique_lock_id;
@@ -875,7 +927,11 @@ export class LSFWrapper {
       this.datamanager.invoke(eventName, this.lsf, eventData, result);
 
       // Persist any queued comments which are not currently attached to an annotation
-      if (isFF(FF_DEV_2887) && ['submitAnnotation', 'skipTask'].includes(eventName) && this.lsf?.commentStore?.persistQueuedComments) {
+      if (
+        isFF(FF_DEV_2887) &&
+        ["submitAnnotation", "skipTask"].includes(eventName) &&
+        this.lsf?.commentStore?.persistQueuedComments
+      ) {
         await this.lsf.commentStore.persistQueuedComments();
       }
     }
@@ -890,26 +946,68 @@ export class LSFWrapper {
     return result;
   }
 
-  /** @private */
-  prepareData(annotation, { includeId, draft } = {}) {
-    const userGenerate =
-      !annotation.userGenerate || annotation.sentUserGenerate;
+  /**
+   * Finds the active draft for the given annotation.
+   * @param {Object} annotation - The annotation object.
+   * @returns {Object|undefined} The active draft or undefined if no draft is found.
+   * @private
+   */
+  findActiveDraft(annotation) {
+    if (isDefined(annotation.draftId)) {
+      return this.task.drafts.find((possibleDraft) => possibleDraft.id === annotation.draftId);
+    }
+    return undefined;
+  }
 
-    const sessionTime = (new Date() - annotation.loadedDate) / 1000;
-    const submittedTime = Number(annotation.leadTime ?? 0);
-    const draftTime = Number(this.task.drafts[0]?.lead_time ?? 0);
-    const lead_time = sessionTime + submittedTime + draftTime;
+  /**
+   * Calculates the startedAt time for an annotation.
+   * @param {Object|undefined} currentDraft - The current draft object, if any.
+   * @param {Date} loadedDate - The date when the annotation was loaded.
+   * @returns {Date} The calculated startedAt time.
+   * @private
+   */
+  calculateStartedAt(currentDraft, loadedDate) {
+    if (currentDraft) {
+      const draftStartedAt = new Date(currentDraft.created_at);
+      const draftLeadTime = Number(currentDraft.lead_time ?? 0);
+      const adjustedStartedAt = new Date(Date.now() - draftLeadTime * 1000);
+
+      if (adjustedStartedAt < draftStartedAt) return draftStartedAt;
+
+      return adjustedStartedAt;
+    }
+    return loadedDate;
+  }
+
+  /**
+   * Prepare data for draft/submission of annotation
+   * @param {Object} annotation - The annotation object.
+   * @param {Object} options - The options object.
+   * @param {boolean} options.includeId - Whether to include the id in the result.
+   * @param {boolean} options.isNewDraft - Whether the draft is new.
+   * @returns {Object} The prepared data.
+   * @private
+   */
+  prepareData(annotation, { includeId, isNewDraft } = {}) {
+    const userGenerate = !annotation.userGenerate || annotation.sentUserGenerate;
+    const currentDraft = this.findActiveDraft(annotation);
+    const sessionTime = (Date.now() - annotation.loadedDate.getTime()) / 1000;
+    const submittedTime = isNewDraft ? 0 : Number(annotation.leadTime ?? 0);
+    const draftTime = Number(currentDraft?.lead_time ?? 0);
+    const leadTime = submittedTime + draftTime + sessionTime;
+    const startedAt = this.calculateStartedAt(currentDraft, annotation.loadedDate);
 
     const result = {
-      lead_time,
-      result: (draft ? annotation.versions.draft : annotation.serializeAnnotation()) ?? [],
+      lead_time: leadTime,
+      result: (isNewDraft ? annotation.versions.draft : annotation.serializeAnnotation()) ?? [],
       draft_id: annotation.draftId,
       parent_prediction: annotation.parent_prediction,
       parent_annotation: annotation.parent_annotation,
+      started_at: startedAt.toISOString(),
     };
 
     if (includeId && userGenerate) {
-      result.id = parseInt(annotation.pk);
+      result.id = Number.parseInt(annotation.pk);
     }
 
     return result;

@@ -1,15 +1,16 @@
-import { observer } from 'mobx-react';
-import { FC, useEffect, useRef } from 'react';
-import { Hotkey } from '../../../core/Hotkey';
-import { useWaveform } from '../../../lib/AudioUltra/react';
-import { Controls } from '../../../components/Timeline/Controls';
-import { Region } from '../../../lib/AudioUltra/Regions/Region';
-import { Segment } from '../../../lib/AudioUltra/Regions/Segment';
-import { Regions } from '../../../lib/AudioUltra/Regions/Regions';
-import { Block } from '../../../utils/bem';
-import { ErrorMessage } from '../../../components/ErrorMessage/ErrorMessage';
+import { observer } from "mobx-react";
+import { type FC, useEffect, useMemo, useRef } from "react";
+import { TimelineContextProvider } from "../../../components/Timeline/Context";
+import { Hotkey } from "../../../core/Hotkey";
+import { useWaveform } from "../../../lib/AudioUltra/react";
+import { Controls } from "../../../components/Timeline/Controls";
+import type { Region } from "../../../lib/AudioUltra/Regions/Region";
+import type { Segment } from "../../../lib/AudioUltra/Regions/Segment";
+import type { Regions } from "../../../lib/AudioUltra/Regions/Regions";
+import { Block } from "../../../utils/bem";
+import { ErrorMessage } from "../../../components/ErrorMessage/ErrorMessage";
 
-import './view.styl';
+import "./view.scss";
 
 interface AudioUltraProps {
   item: any;
@@ -23,10 +24,10 @@ const AudioUltraView: FC<AudioUltraProps> = ({ item }) => {
   const { waveform, ...controls } = useWaveform(rootRef, {
     src: item._value,
     autoLoad: false,
-    waveColor: '#BEB9C5',
-    gridColor: '#BEB9C5',
+    waveColor: "#BEB9C5",
+    gridColor: "#BEB9C5",
     gridWidth: 1,
-    backgroundColor: '#fafafa',
+    backgroundColor: "#fafafa",
     autoCenter: true,
     zoomToCursor: true,
     height: item.height && !isNaN(Number(item.height)) ? Number(item.height) : 96,
@@ -39,7 +40,7 @@ const AudioUltraView: FC<AudioUltraProps> = ({ item }) => {
     zoom: item.defaultzoom ? Number(item.defaultzoom) : 1,
     showLabels: item.annotationStore.store.settings.showLabels,
     rate: item.defaultspeed ? Number(item.defaultspeed) : 1,
-    muted: item.muted === 'true',
+    muted: item.muted === "true",
     onLoad: item.onLoad,
     onPlaying: item.onPlaying,
     onSeek: item.onSeek,
@@ -51,17 +52,20 @@ const AudioUltraView: FC<AudioUltraProps> = ({ item }) => {
       deleteable: !item.readonly,
     },
     timeline: {
-      backgroundColor: '#ffffff',
+      backgroundColor: "#ffffff",
     },
     experimental: {
       backgroundCompute: true,
       denoize: true,
     },
     autoPlayNewSegments: true,
+    onFrameChanged: (frameState) => {
+      item.setWFFrame(frameState);
+    },
   });
 
   useEffect(() => {
-    const hotkeys = Hotkey('Audio', 'Audio Segmentation');
+    const hotkeys = Hotkey("Audio", "Audio Segmentation");
 
     waveform.current?.load();
 
@@ -87,17 +91,26 @@ const AudioUltraView: FC<AudioUltraProps> = ({ item }) => {
     };
 
     const selectRegion = (region: Region | Segment, event: MouseEvent) => {
+      const annotation = item.annotation;
+
       const growSelection = event.metaKey || event.ctrlKey;
 
       if (!growSelection || (!region.selected && !region.isRegion)) item.annotation.regionStore.unselectAll();
 
       // to select or unselect region
       const itemRegion = item.regs.find((obj: any) => obj.id === region.id);
-
-      itemRegion && item.annotation.regionStore.toggleSelection(itemRegion, region.selected);
-
       // to select or unselect unlabeled segments
       const targetInWave = item._ws.regions.findRegion(region.id);
+
+      if (annotation.isLinkingMode && itemRegion) {
+        annotation.addLinkedRegion(itemRegion);
+        annotation.stopLinkingMode();
+        annotation.regionStore.unselectAll();
+        region.handleSelected(false);
+        return;
+      }
+
+      itemRegion && item.annotation.regionStore.toggleSelection(itemRegion, region.selected);
 
       if (targetInWave) {
         targetInWave.handleSelected(region.selected);
@@ -117,21 +130,21 @@ const AudioUltraView: FC<AudioUltraProps> = ({ item }) => {
       item.updateRegion(region);
     };
 
-    waveform.current?.on('beforeRegionsDraw', updateBeforeRegionDraw);
-    waveform.current?.on('afterRegionsDraw', updateAfterRegionDraw);
-    waveform.current?.on('regionSelected', selectRegion);
-    waveform.current?.on('regionCreated', createRegion);
-    waveform.current?.on('regionUpdatedEnd', updateRegion);
+    waveform.current?.on("beforeRegionsDraw", updateBeforeRegionDraw);
+    waveform.current?.on("afterRegionsDraw", updateAfterRegionDraw);
+    waveform.current?.on("regionSelected", selectRegion);
+    waveform.current?.on("regionCreated", createRegion);
+    waveform.current?.on("regionUpdatedEnd", updateRegion);
 
-    hotkeys.addNamed('region:delete', () => {
+    hotkeys.addNamed("region:delete", () => {
       waveform.current?.regions.clearSegments(false);
     });
 
-    hotkeys.addNamed('segment:delete', () => {
+    hotkeys.addNamed("segment:delete", () => {
       waveform.current?.regions.clearSegments(false);
     });
 
-    hotkeys.addNamed('region:delete-all', () => {
+    hotkeys.addNamed("region:delete-all", () => {
       waveform.current?.regions.clearSegments();
     });
 
@@ -140,51 +153,74 @@ const AudioUltraView: FC<AudioUltraProps> = ({ item }) => {
     };
   }, []);
 
+  const contextValue = useMemo(() => {
+    return {
+      position: 0,
+      length: 0,
+      regions: [],
+      step: 10,
+      playing: false,
+      visibleWidth: 0,
+      seekOffset: 0,
+      data: undefined,
+      settings: {
+        playpauseHotkey: "audio:playpause",
+      },
+    };
+  }, []);
+
   return (
     <Block name="audio-tag">
       {item.errors?.map((error: any, i: any) => (
         <ErrorMessage key={`err-${i}`} error={error} />
       ))}
-      <div ref={el => (rootRef.current = el)}></div>
-      <Controls
-        position={controls.currentTime}
-        playing={controls.playing}
-        volume={controls.volume}
-        speed={controls.rate}
-        zoom={controls.zoom}
-        duration={controls.duration}
-        onPlay={() => controls.setPlaying(true)}
-        onPause={() => controls.setPlaying(false)}
-        allowFullscreen={false}
-        onVolumeChange={vol => controls.setVolume(vol)}
-        onStepBackward={() => {
-          waveform.current?.seekBackward(NORMALIZED_STEP);
-          waveform.current?.syncCursor();
+      <div
+        ref={(el) => {
+          rootRef.current = el;
+          item.stageRef.current = el;
         }}
-        onStepForward={() => {
-          waveform.current?.seekForward(NORMALIZED_STEP);
-          waveform.current?.syncCursor();
-        }}
-        onPositionChange={pos => {
-          waveform.current?.seek(pos);
-          waveform.current?.syncCursor();
-        }}
-        onSpeedChange={speed => controls.setRate(speed)}
-        onZoom={zoom => controls.setZoom(zoom)}
-        amp={controls.amp}
-        onAmpChange={amp => controls.setAmp(amp)}
-        mediaType="audio"
-        toggleVisibility={(layerName: string, isVisible: boolean) => {
-          if (waveform.current) {
-            const layer = waveform.current?.getLayer(layerName);
-
-            if (layer) {
-              layer.setVisibility(isVisible);
-            }
-          }
-        }}
-        layerVisibility={controls.layerVisibility}
       />
+      <TimelineContextProvider value={contextValue}>
+        <Controls
+          position={controls.currentTime}
+          playing={controls.playing}
+          volume={controls.volume}
+          speed={controls.rate}
+          zoom={controls.zoom}
+          duration={controls.duration}
+          onPlay={() => controls.setPlaying(true)}
+          onPause={() => controls.setPlaying(false)}
+          allowFullscreen={false}
+          onVolumeChange={(vol) => controls.setVolume(vol)}
+          onStepBackward={() => {
+            waveform.current?.seekBackward(NORMALIZED_STEP);
+            waveform.current?.syncCursor();
+          }}
+          onStepForward={() => {
+            waveform.current?.seekForward(NORMALIZED_STEP);
+            waveform.current?.syncCursor();
+          }}
+          onPositionChange={(pos) => {
+            waveform.current?.seek(pos);
+            waveform.current?.syncCursor();
+          }}
+          onSpeedChange={(speed) => controls.setRate(speed)}
+          onZoom={(zoom) => controls.setZoom(zoom)}
+          amp={controls.amp}
+          onAmpChange={(amp) => controls.setAmp(amp)}
+          mediaType="audio"
+          toggleVisibility={(layerName: string, isVisible: boolean) => {
+            if (waveform.current) {
+              const layer = waveform.current?.getLayer(layerName);
+
+              if (layer) {
+                layer.setVisibility(isVisible);
+              }
+            }
+          }}
+          layerVisibility={controls.layerVisibility}
+        />
+      </TimelineContextProvider>
     </Block>
   );
 };

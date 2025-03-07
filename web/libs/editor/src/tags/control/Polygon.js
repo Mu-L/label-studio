@@ -1,17 +1,15 @@
-import { types } from 'mobx-state-tree';
+import { types } from "mobx-state-tree";
 
-import Registry from '../../core/Registry';
-import { Hotkey } from '../../core/Hotkey';
-import ControlBase from './Base';
-import { customTypes } from '../../core/CustomTypes';
-import Types from '../../core/Types';
-import { AnnotationMixin } from '../../mixins/AnnotationMixin';
-import SeparatedControlMixin from '../../mixins/SeparatedControlMixin';
-import { ToolManagerMixin } from '../../mixins/ToolManagerMixin';
-import { FF_DEV_2576, isFF } from '../../utils/feature-flags';
+import Registry from "../../core/Registry";
+import { Hotkey } from "../../core/Hotkey";
+import ControlBase from "./Base";
+import { customTypes } from "../../core/CustomTypes";
+import Types from "../../core/Types";
+import { AnnotationMixin } from "../../mixins/AnnotationMixin";
+import SeparatedControlMixin from "../../mixins/SeparatedControlMixin";
+import { ToolManagerMixin } from "../../mixins/ToolManagerMixin";
 
-
-const hotkeys = Hotkey('Polygons');
+const hotkeys = Hotkey("Polygons");
 
 /**
  * The `Polygon` tag is used to add polygons to an image without selecting a label. This can be useful when you have only one label to assign to the polygon. Use for image segmentation tasks.
@@ -41,50 +39,46 @@ const hotkeys = Hotkey('Polygons');
 const TagAttrs = types.model({
   toname: types.maybeNull(types.string),
 
-  opacity: types.optional(customTypes.range(), '0.2'),
-  fillcolor: types.optional(customTypes.color, '#f48a42'),
+  opacity: types.optional(customTypes.range(), "0.2"),
+  fillcolor: types.optional(customTypes.color, "#f48a42"),
 
-  strokewidth: types.optional(types.string, '2'),
-  strokecolor: types.optional(customTypes.color, '#f48a42'),
+  strokewidth: types.optional(types.string, "2"),
+  strokecolor: types.optional(customTypes.color, "#f48a42"),
 
-  snap: types.optional(types.string, 'none'),
+  snap: types.optional(types.string, "none"),
 
-  pointsize: types.optional(types.string, 'small'),
-  pointstyle: types.optional(types.string, 'circle'),
+  pointsize: types.optional(types.string, "small"),
+  pointstyle: types.optional(types.string, "circle"),
 });
 
 const Validation = types.model({
-  controlledTags: Types.unionTag(['Image']),
+  controlledTags: Types.unionTag(["Image"]),
 });
 
 const Model = types
   .model({
-    type: 'polygon',
+    type: "polygon",
 
     // regions: types.array(RectRegionModel),
-    _value: types.optional(types.string, ''),
+    _value: types.optional(types.string, ""),
   })
   .volatile(() => ({
-    toolNames: ['Polygon'],
+    toolNames: ["Polygon"],
   }))
-  .actions(self => {
+  .actions((self) => {
     return {
       initializeHotkeys() {
-        if (isFF(FF_DEV_2576)) {
-          hotkeys.addNamed('polygon:undo', () => {
-            if (self.annotation.isDrawing) self.annotation.undo();
-          });
-          hotkeys.addNamed('polygon:redo', () => {
-            if (self.annotation.isDrawing) self.annotation.redo();
-          });
-        }
+        hotkeys.addNamed("polygon:undo", () => {
+          if (self.annotation.isDrawing) self.annotation.undo();
+        });
+        hotkeys.addNamed("polygon:redo", () => {
+          if (self.annotation.isDrawing) self.annotation.redo();
+        });
       },
 
       disposeHotkeys() {
-        if (isFF(FF_DEV_2576)) {
-          hotkeys.removeNamed('polygon:undo');
-          hotkeys.removeNamed('polygon:redo');
-        }
+        hotkeys.removeNamed("polygon:undo");
+        hotkeys.removeNamed("polygon:redo");
       },
 
       afterCreate() {
@@ -98,7 +92,7 @@ const Model = types
   });
 
 const PolygonModel = types.compose(
-  'PolygonModel',
+  "PolygonModel",
   ControlBase,
   AnnotationMixin,
   SeparatedControlMixin,
@@ -110,6 +104,6 @@ const PolygonModel = types.compose(
 
 const HtxView = () => null;
 
-Registry.addTag('polygon', PolygonModel, HtxView);
+Registry.addTag("polygon", PolygonModel, HtxView);
 
 export { HtxView, PolygonModel };

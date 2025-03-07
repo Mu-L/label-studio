@@ -4,10 +4,10 @@ short: Add users
 tier: enterprise
 type: guide
 order: 0
-order_enterprise: 362
+order_enterprise: 369
 meta_title: Add and invite users to Label Studio
 meta_description: Overview of how you can add users to Label Studio Enterprise
-section: "Administration"
+section: "Manage Your Organization"
 parent: "manage_users"
 parent_enterprise: "manage_users"
 date: 2024-02-05 17:15:19
@@ -57,7 +57,7 @@ Once the initial organization account is created, you can begin inviting users:
 From here you have two options:
 
 * **Invite link**  
-You can share this link with users, who can then complete the registration process. However, they will be unable to access Label Studio until an Owner or Administrator manually assigns them a role. See [Assign roles to users](admin_user_manage#Assign-roles-to-users). 
+You can share this link with users, who can then complete the registration process. However, they will be unable to access Label Studio until an Owner or Administrator manually assigns them a role. See [User roles and permissions](admin_roles). 
 
     Click **Reset Link** to reset the link. When reset, anyone who have the old link will be unable to register a new user account. 
 

@@ -1,6 +1,6 @@
 import { destroy, flow, types } from "mobx-state-tree";
 import { Modal } from "../components/Common/Modal/Modal";
-import { FF_DEV_2887, FF_LOPS_E_3, isFF } from "../utils/feature-flags";
+import { FF_DEV_2887, FF_LOPS_E_3, FF_REGION_VISIBILITY_FROM_URL, isFF } from "../utils/feature-flags";
 import { History } from "../utils/history";
 import { isDefined } from "../utils/utils";
 import { Action } from "./Action";
@@ -20,10 +20,7 @@ const PROJECTS_FETCH_PERIOD = 10 * 1000; // 10 seconds
 
 export const AppStore = types
   .model("AppStore", {
-    mode: types.optional(
-      types.enumeration(["explorer", "labelstream", "labeling"]),
-      "explorer",
-    ),
+    mode: types.optional(types.enumeration(["explorer", "labelstream", "labeling"]), "explorer"),
 
     viewsStore: types.optional(TabStore, {
       views: [],
@@ -82,7 +79,7 @@ export const AppStore = types
     },
 
     get isLabeling() {
-      return !!self.dataStore?.selected || self.isLabelStreamMode || self.mode === 'labeling';
+      return !!self.dataStore?.selected || self.isLabelStreamMode || self.mode === "labeling";
     },
 
     get isLabelStreamMode() {
@@ -90,7 +87,7 @@ export const AppStore = types
     },
 
     get isExplorerMode() {
-      return self.mode === "explorer" || self.mode === 'labeling';
+      return self.mode === "explorer" || self.mode === "labeling";
     },
 
     get currentView() {
@@ -129,7 +126,7 @@ export const AppStore = types
     },
 
     get currentFilter() {
-      return self.currentView.filterSnposhot;
+      return self.currentView.filterSnapshot;
     },
   }))
   .volatile(() => ({
@@ -202,14 +199,29 @@ export const AppStore = types
 
     setTask: flow(function* ({ taskID, annotationID, pushState }) {
       if (pushState !== false) {
-        History.navigate({ task: taskID, annotation: annotationID ?? null, interaction: null });
+        History.navigate({
+          task: taskID,
+          annotation: annotationID ?? null,
+          interaction: null,
+          region: null,
+        });
+      } else if (isFF(FF_REGION_VISIBILITY_FROM_URL)) {
+        const { task, region, annotation } = History.getParams();
+        History.navigate(
+          {
+            task,
+            region,
+            annotation,
+          },
+          true,
+        );
       }
 
       if (!isDefined(taskID)) return;
 
-      self.loadingData = true;
+      self.setLoadingData(true);
 
-      if (self.mode === 'labelstream') {
+      if (self.mode === "labelstream") {
         yield self.taskStore.loadNextTask({
           select: !!taskID && !!annotationID,
         });
@@ -219,19 +231,48 @@ export const AppStore = types
         self.annotationStore.setSelected(annotationID);
       } else {
         self.taskStore.setSelected(taskID);
+      }
 
-        yield self.taskStore.loadTask(taskID, {
-          select: !!taskID && !!annotationID,
-        });
+      const taskPromise = self.taskStore.loadTask(taskID, {
+        select: !!taskID && !!annotationID,
+      });
 
+      taskPromise.then(() => {
         const annotation = self.LSF?.currentAnnotation;
         const id = annotation?.pk ?? annotation?.id;
 
         self.LSF?.setLSFTask(self.taskStore.selected, id);
 
-        self.loadingData = false;
-      }
+        if (isFF(FF_REGION_VISIBILITY_FROM_URL)) {
+          const { annotation: annIDFromUrl, region: regionIDFromUrl } = History.getParams();
+          const annotationStore = self.LSF?.lsf?.annotationStore;
+
+          if (annIDFromUrl && annotationStore) {
+            const lsfAnnotation = [...annotationStore.annotations, ...annotationStore.predictions].find((a) => {
+              return a.pk === annIDFromUrl || a.id === annIDFromUrl;
+            });
+
+            if (lsfAnnotation) {
+              const annID = lsfAnnotation.pk ?? lsfAnnotation.id;
+              self.LSF?.setLSFTask(self.taskStore.selected, annID, undefined, lsfAnnotation.type === "prediction");
+            }
+          }
+          if (regionIDFromUrl) {
+            const currentAnn = self.LSF?.currentAnnotation;
+            // Focus on the region by hiding all other regions
+            currentAnn?.regionStore?.setRegionVisible(regionIDFromUrl);
+            // Select the region so outliner details are visible
+            currentAnn?.regionStore?.selectRegionByID(regionIDFromUrl);
+          }
+        }
+
+        self.setLoadingData(false);
+      });
     }),
+
+    setLoadingData(value) {
+      self.loadingData = value;
+    },
 
     unsetTask(options) {
       try {
@@ -269,20 +310,17 @@ export const AppStore = types
       if (!self.confirmLabelingConfigured()) return;
 
       const nextAction = () => {
-
         self.SDK.setMode("labelstream");
 
         if (options?.pushState !== false) {
           History.navigate({ labeling: 1 });
         }
-
       };
 
       if (isFF(FF_DEV_2887) && self.LSF?.lsf?.annotationStore?.selected?.commentStore?.hasUnsaved) {
         Modal.confirm({
           title: "You have unsaved changes",
-          body:
-            "There are comments which are not persisted. Please submit the annotation. Continuing will discard these comments.",
+          body: "There are comments which are not persisted. Please submit the annotation. Continuing will discard these comments.",
           onOk() {
             nextAction();
           },
@@ -300,10 +338,9 @@ export const AppStore = types
       if (self.dataStore.loadingItem) return;
 
       const nextAction = () => {
-
         self.SDK.setMode("labeling");
 
-        if (item && !item.isSelected) {
+        if (item?.id && !item.isSelected) {
           const labelingParams = {
             pushState: options?.pushState,
           };
@@ -328,8 +365,7 @@ export const AppStore = types
       if (isFF(FF_DEV_2887) && self.LSF?.lsf?.annotationStore?.selected?.commentStore?.hasUnsaved) {
         Modal.confirm({
           title: "You have unsaved changes",
-          body:
-            "There are comments which are not persisted. Please submit the annotation. Continuing will discard these comments.",
+          body: "There are comments which are not persisted. Please submit the annotation. Continuing will discard these comments.",
           onOk() {
             nextAction();
           },
@@ -345,17 +381,15 @@ export const AppStore = types
       if (!self.labelingIsConfigured) {
         Modal.confirm({
           title: "You're almost there!",
-          body:
-            "Before you can annotate the data, set up labeling configuration",
+          body: "Before you can annotate the data, set up labeling configuration",
           onOk() {
             self.SDK.invoke("settingsClicked");
           },
           okText: "Go to setup",
         });
         return false;
-      } else {
-        return true;
       }
+      return true;
     },
 
     closeLabeling(options) {
@@ -383,10 +417,10 @@ export const AppStore = types
     },
 
     handlePopState: (({ state }) => {
-      const { tab, task, annotation, labeling } = state ?? {};
+      const { tab, task, annotation, labeling, region } = state ?? {};
 
       if (tab) {
-        const tabId = parseInt(tab);
+        const tabId = Number.parseInt(tab);
 
         self.viewsStore.setSelected(Number.isNaN(tabId) ? tab : tabId, {
           pushState: false,
@@ -398,10 +432,15 @@ export const AppStore = types
         const params = {};
 
         if (annotation) {
-          params.task_id = parseInt(task);
-          params.id = parseInt(annotation);
+          params.task_id = Number.parseInt(task);
+          params.id = Number.parseInt(annotation);
         } else {
-          params.id = parseInt(task);
+          params.id = Number.parseInt(task);
+        }
+        if (region) {
+          params.region = region;
+        } else {
+          delete params.region;
         }
 
         self.startLabeling(params, { pushState: false });
@@ -427,29 +466,32 @@ export const AppStore = types
       const params =
         options && options.interaction
           ? {
-            interaction: options.interaction,
-            ...(isTimer ? ({
-              include: [
-                "task_count",
-                "task_number",
-                "annotation_count",
-                "num_tasks_with_annotations",
-                "queue_total",
-              ].join(","),
-            }) : null),
-          }
+              interaction: options.interaction,
+              ...(isTimer
+                ? {
+                    include: [
+                      "task_count",
+                      "task_number",
+                      "annotation_count",
+                      "num_tasks_with_annotations",
+                      "queue_total",
+                    ].join(","),
+                  }
+                : null),
+            }
           : null;
 
       try {
         const newProject = yield self.apiCall("project", params);
         const projectLength = Object.entries(self.project ?? {}).length;
 
-        self.needsDataFetch = (options.force !== true && projectLength > 0) ? (
-          self.project.task_count !== newProject.task_count ||
-          self.project.task_number !== newProject.task_number ||
-          self.project.annotation_count !== newProject.annotation_count ||
-          self.project.num_tasks_with_annotations !== newProject.num_tasks_with_annotations
-        ) : false;
+        self.needsDataFetch =
+          options.force !== true && projectLength > 0
+            ? self.project.task_count !== newProject.task_count ||
+              self.project.task_number !== newProject.task_number ||
+              self.project.annotation_count !== newProject.annotation_count ||
+              self.project.num_tasks_with_annotations !== newProject.num_tasks_with_annotations
+            : false;
 
         if (options.interaction === "timer") {
           self.project = Object.assign(self.project ?? {}, newProject);
@@ -457,7 +499,7 @@ export const AppStore = types
           self.project = newProject;
         }
         if (isFF(FF_LOPS_E_3)) {
-          const itemType = self.SDK.type === 'DE' ? 'dataset' : 'project';
+          const itemType = self.SDK.type === "DE" ? "dataset" : "project";
 
           self.SDK.invoke(`${itemType}Updated`, self.project);
         }
@@ -480,7 +522,7 @@ export const AppStore = types
     }),
 
     fetchUsers: flow(function* () {
-      const list = yield self.apiCall("users");
+      const list = yield self.apiCall("users", { __useQueryCache: 60 * 1000 });
 
       self.users.push(...list);
     }),
@@ -492,28 +534,35 @@ export const AppStore = types
 
       self.viewsStore.fetchColumns();
 
-      const requests = [
-        self.fetchProject(),
-        self.fetchUsers(),
-      ];
+      const requests = [self.fetchProject(), self.fetchUsers()];
 
       if (!isLabelStream || (self.project?.show_annotation_history && task)) {
-        if (self.SDK.type === 'dm') {
+        if (self.SDK.type === "dm") {
           requests.push(self.fetchActions());
         }
 
         if (self.SDK.settings?.onlyVirtualTabs && self.project?.show_annotation_history && !task) {
-          requests.push(self.viewsStore.addView({
-            virtual: true,
-            projectId: self.SDK.projectId,
-            tab,
-          }, { autosave: false, reload: false }));
-        } else if (self.SDK.type === 'labelops') {
-          requests.push(self.viewsStore.addView({
-            virtual: false,
-            projectId: self.SDK.projectId,
-            tab,
-          }, { autosave: false, autoSelect: true, reload: true }));
+          requests.push(
+            self.viewsStore.addView(
+              {
+                virtual: true,
+                projectId: self.SDK.projectId,
+                tab,
+              },
+              { autosave: false, reload: false },
+            ),
+          );
+        } else if (self.SDK.type === "labelops") {
+          requests.push(
+            self.viewsStore.addView(
+              {
+                virtual: false,
+                projectId: self.SDK.projectId,
+                tab,
+              },
+              { autosave: false, autoSelect: true, reload: true },
+            ),
+          );
         } else {
           requests.push(self.viewsStore.fetchTabs(tab, task, labeling));
         }
@@ -553,7 +602,7 @@ export const AppStore = types
       const requestBody = apiTransform?.body?.(body) ?? body ?? {};
       const requestHeaders = apiTransform?.headers?.(options?.headers) ?? options?.headers ?? {};
       const requestKey = `${methodName}_${JSON.stringify(params || {})}`;
-      
+
       if (isAllowCancel) {
         requestHeaders.signal = signal;
         if (self.requestsInFlight.has(requestKey)) {
@@ -563,7 +612,11 @@ export const AppStore = types
         }
         self.requestsInFlight.set(requestKey, controller);
       }
-      let result = yield self.API[methodName](requestParams, { headers: requestHeaders, body: requestBody.body ?? requestBody });
+      const result = yield self.API[methodName](requestParams, {
+        headers: requestHeaders,
+        body: requestBody.body ?? requestBody,
+        options,
+      });
 
       if (isAllowCancel) {
         result.isCanceled = signal.aborted;
@@ -610,8 +663,7 @@ export const AppStore = types
     invokeAction: flow(function* (actionId, options = {}) {
       const view = self.currentView ?? {};
 
-      const needsLock =
-        self.availableActions.findIndex((a) => a.id === actionId) >= 0;
+      const needsLock = self.availableActions.findIndex((a) => a.id === actionId) >= 0;
 
       const { selected } = view;
       const actionCallback = self.SDK.getAction(actionId);
@@ -626,20 +678,23 @@ export const AppStore = types
         ordering: view.ordering,
         selectedItems: selected?.snapshot ?? { all: false, included: [] },
         filters: {
-          conjunction: view.conjunction ?? 'and',
+          conjunction: view.conjunction ?? "and",
           items: view.serializedFilters ?? [],
         },
       };
 
       if (actionId === "next_task") {
-        if (labelStreamMode === 'all') {
+        const isSelectAll = actionParams.selectedItems.all === true;
+        const isAllLabelStreamMode = labelStreamMode === "all";
+        const isFilteredLabelStreamMode = labelStreamMode === "filtered";
+        if (isAllLabelStreamMode && !isSelectAll) {
           delete actionParams.filters;
 
           if (actionParams.selectedItems.all === false && actionParams.selectedItems.included.length === 0) {
             delete actionParams.selectedItems;
             delete actionParams.ordering;
           }
-        } else if (labelStreamMode === 'filtered') {
+        } else if (isFilteredLabelStreamMode) {
           delete actionParams.selectedItems;
         }
       }
@@ -660,13 +715,13 @@ export const AppStore = types
         Object.assign(actionParams, options.body);
       }
 
-      const result = yield self.apiCall(
-        "invokeAction",
-        requestParams,
-        {
-          body: actionParams,
-        },
-      );
+      const result = yield self.apiCall("invokeAction", requestParams, {
+        body: actionParams,
+      });
+
+      if (result.async) {
+        self.SDK.invoke("toast", { message: "Your action is being processed in the background.", type: "info" });
+      }
 
       if (result.reload) {
         self.SDK.reload();

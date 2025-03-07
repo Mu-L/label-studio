@@ -1,13 +1,14 @@
 ---
 title: Deploy Label Studio on Kubernetes
-short: Kubernetes
+short: Install using Kubernetes
 tier: opensource
 type: guide
-order: 60
+order: 69
 order_enterprise: 0
 meta_title: Deploy Label Studio on Kubernetes
 meta_description: Deploy Label Studio on Kubernetes, such as on Amazon Elastic Container Service for Kubernetes, to create machine learning and data science projects in a scalable containerized environment.
-section: "Install"
+section: "Install & Setup"
+parent: "install"
 ---
 
 Deploy Label Studio on a Kubernetes Cluster using Helm 3. You can use this Helm chart to set up Label Studio for deployment onto a Kubernetes cluster and install, upgrade, and manage the application.
@@ -17,7 +18,7 @@ Your Kubernetes cluster can be self-hosted or installed somewhere such as Amazon
 <div class="opensource-only">
 
 !!! warning
-    To install Label Studio Enterprise Edition, see <a href="install_enterprise_k8s.html">Deploy Label Studio Enterprise on Kubernetes</a>. This page is specific to the community version of Label Studio.
+    To install Label Studio Enterprise Edition, see <a href="https://docs.humansignal.com/guide/install_enterprise_k8s">Deploy Label Studio Enterprise on Kubernetes</a>. This page is specific to the community version of Label Studio.
 
 </div>
 
@@ -34,7 +35,7 @@ If you want to install Label Studio on Kubernetes and you have unrestricted acce
 7. (Optional) [Set up TLS for PostgreSQL](#Optional-set-up-TLS-for-PostgreSQL)
 8. [Use Helm to install Label Studio on your Kubernetes cluster](#Use-Helm-to-install-Label-Studio-on-your-Kubernetes-cluster).
 
-If you use a proxy to access the internet from your Kubernetes cluster, or it is airgapped from the internet, see how to [Install Label Studio without public internet access](/guide/install_airgapped.html).
+If you use a proxy to access the internet from your Kubernetes cluster, or it is airgapped from the internet, see how to [Install Label Studio without public internet access](/guide/install_k8s_airgapped.html).
 
 ### Required software prerequisites
 
@@ -97,7 +98,6 @@ To configure Label Studio to use TLS for end-client connections with PostgreSQL,
 
 1. Enable TLS for your PostgreSQL instance and save Root TLS certificate, client certificate and its key for the next steps.
 2. Create a Kubernetes secret with your certificates, replacing `<PATH_TO_CA>`, `<PATH_TO_CLIENT_CRT>` and `<PATH_TO_CLIENT_KEY>` with paths to your certificates:
-
 ```shell
 kubectl create secret generic <YOUR_SECRET_NAME> --from-file=ca.crt=<PATH_TO_CA> --from-file=client.crt=<PATH_TO_CLIENT_CRT> --from-file=client.key=<PATH_TO_CLIENT_KEY>
 ```
@@ -144,13 +144,11 @@ kubectl get pods
 Restart your Helm release by doing the following from the command line:
 
 1. Identify the &lt;RELEASE_NAME&gt; of the latest Label Studio release:
-
 ```shell
 helm list
 ```
 
-2Restart the Label Studio app:
-
+2. Restart the Label Studio app:
 ```shell
 kubectl rollout restart deployment/<RELEASE_NAME>-ls-app
 ```

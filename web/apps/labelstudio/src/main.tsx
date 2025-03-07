@@ -1,2 +1,5 @@
-import './app/App';
-import './utils/service-worker';
+import { registerAnalytics } from "@humansignal/core";
+registerAnalytics();
+
+import "./app/App";
+import "./utils/service-worker";

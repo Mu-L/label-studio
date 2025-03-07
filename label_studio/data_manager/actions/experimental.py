@@ -6,6 +6,7 @@ import random
 
 import ujson as json
 from core.permissions import AllPermissions
+from core.utils.db import fast_first
 from data_manager.functions import DataManagerException
 from django.conf import settings
 from tasks.models import Annotation, Task
@@ -55,7 +56,7 @@ def propagate_annotations(project, queryset, **kwargs):
 
 
 def propagate_annotations_form(user, project):
-    first_annotation = Annotation.objects.filter(project=project).first()
+    first_annotation = fast_first(Annotation.objects.filter(project=project))
     field = {
         'type': 'number',
         'name': 'source_annotation_id',
@@ -110,6 +111,7 @@ def rename_labels(project, queryset, **kwargs):
             annotation_count += 1
 
     # update summaries
+    logger.info(f'calling reset project_id={project.id} rename_labels()')
     project.summary.reset()
     project.summary.update_data_columns(project.tasks.all())
     annotations = Annotation.objects.filter(project=project)
