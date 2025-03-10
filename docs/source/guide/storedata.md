@@ -1,12 +1,12 @@
 ---
-title: Database setup 
+title: Set up the database 
 type: guide
 tier: opensource
-order: 80
+order: 84
 order_enterprise: 0
 meta_title: Database Storage Setup
 meta_description: Configure the database storage used by Label Studio to ensure performant and scalable data and configuration storage.
-section: "Install"
+section: "Install & Setup"
 ---
 
 Label Studio uses a database to store project data and configuration information.
@@ -55,7 +55,7 @@ MinIO is a blob storage solution that is compatible with Amazon S3. You can use 
 
 ### Starting the containers
 For local development, you can host a local MinIO server to emulate an S3-based production environment more closely. 
-An example docker-compose file for this is available in the [Label Studio repository](https://github.com/heartexlabs/label-studio).
+An example docker-compose file for this is available in the [Label Studio repository](https://github.com/HumanSignal/label-studio).
 
 To run MinIO alongside your Label Studio instance, use the following command:
 ````bash
@@ -91,7 +91,7 @@ You can remove your MinIO installation by removing the containers and the associ
 This operation is destructive and will remove all data stored in MinIO.
 ```bash
 docker-compose -f docker-compose.minio.yml down --volumes
-````
+```
 
 
 ## Data persistence
@@ -110,7 +110,7 @@ docker run -it -p 8080:8080 -v <yourvolume>:/label-studio/data heartexlabs/label
 !!! attention "important"
     As this is a non-root container, the mounted files and directories must have the proper permissions for the `UID 1001`.
 
-If you're using Docker Compose with the [config included in the Label Studio repository](https://github.com/heartexlabs/label-studio/blob/master/docker-compose.yml), you can set up Docker volumes in the `docker-compose.yml` file for Label Studio:
+If you're using Docker Compose with the [config included in the Label Studio repository](https://github.com/HumanSignal/label-studio/blob/develop/docker-compose.yml), you can set up Docker volumes in the `docker-compose.yml` file for Label Studio:
 ```
 version: "3.3"
 services:

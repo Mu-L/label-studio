@@ -1,32 +1,33 @@
-import { types } from 'mobx-state-tree';
+import { types } from "mobx-state-tree";
 
-import Utils from '../utils';
-import throttle from 'lodash.throttle';
-import { MIN_SIZE } from '../tools/Base';
-import { FF_DEV_3666, FF_DEV_3793, isFF } from '../utils/feature-flags';
-import { RELATIVE_STAGE_HEIGHT, RELATIVE_STAGE_WIDTH } from '../components/ImageView/Image';
+import Utils from "../utils";
+import throttle from "lodash.throttle";
+import { MIN_SIZE } from "../tools/Base";
+import { FF_DEV_3793, isFF } from "../utils/feature-flags";
+import { RELATIVE_STAGE_HEIGHT, RELATIVE_STAGE_WIDTH } from "../components/ImageView/Image";
 
 const DrawingTool = types
-  .model('DrawingTool', {
+  .model("DrawingTool", {
     default: true,
-    mode: types.optional(types.enumeration(['drawing', 'viewing']), 'viewing'),
+    mode: types.optional(types.enumeration(["drawing", "viewing"]), "viewing"),
     unselectRegionOnToolChange: true,
+    isDrawingTool: true,
   })
   .volatile(() => {
     return {
       currentArea: null,
     };
   })
-  .views(self => {
+  .views((self) => {
     return {
       createRegionOptions(opts) {
         return {
           ...opts,
-          coordstype: 'px',
+          coordstype: "px",
         };
       },
       get tagTypes() {
-        console.error('Drawing tool model needs to implement tagTypes getter in views');
+        console.error("Drawing tool model needs to implement tagTypes getter in views");
         return {};
       },
       isIncorrectControl() {
@@ -36,7 +37,7 @@ const DrawingTool = types
         return !self.obj.checkLabels();
       },
       get isDrawing() {
-        return self.mode === 'drawing';
+        return self.mode === "drawing";
       },
       get getActiveShape() {
         return self.currentArea;
@@ -51,14 +52,14 @@ const DrawingTool = types
         return !self.isDrawing && !self.annotation.isReadOnly();
       },
       get defaultDimensions() {
-        console.warn('Drawing tool model needs to implement defaultDimentions getter in views');
+        console.warn("Drawing tool model needs to implement defaultDimentions getter in views");
         return {};
       },
       get MIN_SIZE() {
         if (isFF(FF_DEV_3793)) {
           return {
-            X: MIN_SIZE.X / self.obj.stageScale / self.obj.stageWidth * RELATIVE_STAGE_WIDTH,
-            Y: MIN_SIZE.Y / self.obj.stageScale / self.obj.stageHeight * RELATIVE_STAGE_HEIGHT,
+            X: (MIN_SIZE.X / self.obj.stageScale / self.obj.stageWidth) * RELATIVE_STAGE_WIDTH,
+            Y: (MIN_SIZE.Y / self.obj.stageScale / self.obj.stageHeight) * RELATIVE_STAGE_HEIGHT,
           };
         }
 
@@ -67,9 +68,21 @@ const DrawingTool = types
           Y: MIN_SIZE.Y / self.obj.stageScale,
         };
       },
+      /**
+       * Determines if an interaction is allowed based on the current context and event properties.
+       *
+       * @param {Object} ev - The event object containing details about the interaction.
+       * @return {boolean} Returns true if the interaction is allowed, otherwise false.
+       */
+      isAllowedInteraction(ev) {
+        if (self.group !== "segmentation") return true;
+        if (ev.offsetX > self.obj.canvasSize.width) return false;
+        if (ev.offsetY > self.obj.canvasSize.height) return false;
+        return true;
+      },
     };
   })
-  .actions(self => {
+  .actions((self) => {
     let lastClick = {
       ts: 0,
       x: 0,
@@ -80,17 +93,17 @@ const DrawingTool = types
       event(name, ev, [x, y, canvasX, canvasY]) {
         // filter right clicks and middle clicks and shift pressed
         if (ev.button > 0 || ev.shiftKey) return;
-        let fn = name + 'Ev';
+        let fn = `${name}Ev`;
 
-        if (typeof self[fn] !== 'undefined') self[fn].call(self, ev, [x, y], [canvasX, canvasY]);
+        if (typeof self[fn] !== "undefined") self[fn].call(self, ev, [x, y], [canvasX, canvasY]);
 
         // Emulating of dblclick event, 'cause redrawing will crush the the original one
-        if (name === 'click') {
+        if (name === "click") {
           const ts = ev.timeStamp;
 
           if (ts - lastClick.ts < 300 && self.comparePointsWithThreshold(lastClick, { x, y })) {
-            fn = 'dbl' + fn;
-            if (typeof self[fn] !== 'undefined') self[fn].call(self, ev, [x, y], [canvasX, canvasY]);
+            fn = `dbl${fn}`;
+            if (typeof self[fn] !== "undefined") self[fn].call(self, ev, [x, y], [canvasX, canvasY]);
           }
           lastClick = { ts, x, y };
         }
@@ -98,12 +111,12 @@ const DrawingTool = types
 
       comparePointsWithThreshold(p1, p2, threshold = { x: self.MIN_SIZE.X, y: self.MIN_SIZE.Y }) {
         if (!p1 || !p2) return;
-        if (typeof threshold === 'number') threshold = { x: threshold, y: threshold };
+        if (typeof threshold === "number") threshold = { x: threshold, y: threshold };
         return Math.abs(p1.x - p2.x) < threshold.x && Math.abs(p1.y - p2.y) < threshold.y;
       },
     };
   })
-  .actions(self => {
+  .actions((self) => {
     return {
       createDrawingRegion(opts) {
         const control = self.control;
@@ -120,7 +133,7 @@ const DrawingTool = types
         self.currentArea = existingUnclosedPolygon;
         self.currentArea.setDrawing(true);
         self.annotation.regionStore.selection._updateResultsFromRegions([self.currentArea]);
-        self.mode = 'drawing';
+        self.mode = "drawing";
         self.annotation.setIsDrawing(true);
         self.annotation.regionStore.selection.drawingSelect(self.currentArea);
         self.listenForClose?.();
@@ -130,16 +143,19 @@ const DrawingTool = types
 
         if (!currentArea) return;
         const source = currentArea.toJSON();
-        const value = Object.keys(currentArea.serialize().value).reduce((value, key) => {
-          value[key] = source[key];
-          return value;
-        }, { coordstype: 'px', dynamic: self.dynamic });
+        const value = Object.keys(currentArea.serialize().value).reduce(
+          (value, key) => {
+            value[key] = source[key];
+            return value;
+          },
+          { coordstype: "px", dynamic: self.dynamic },
+        );
 
         const [main, ...rest] = currentArea.results;
         const newArea = self.annotation.createResult(value, main.value.toJSON(), control, obj);
 
         //when user is using two different labels tag to draw a region, the other labels will be added to the region
-        rest.forEach(r => newArea.addResult(r.toJSON()));
+        rest.forEach((r) => newArea.addResult(r.toJSON()));
 
         currentArea.setDrawing(false);
         self.deleteRegion();
@@ -161,7 +177,7 @@ const DrawingTool = types
       applyActiveStates(area) {
         const activeStates = self.obj.activeStates();
 
-        activeStates.forEach(state => {
+        activeStates.forEach((state) => {
           area.setValue(state);
         });
       },
@@ -171,15 +187,12 @@ const DrawingTool = types
       },
 
       canStartDrawing() {
-        return !self.isIncorrectControl()
-          && (!isFF(FF_DEV_3666) || !self.isIncorrectLabel())
-          && self.canStart()
-          && !self.annotation.isDrawing;
+        return !self.isIncorrectControl() && !self.isIncorrectLabel() && self.canStart() && !self.annotation.isDrawing;
       },
 
       startDrawing(x, y) {
         self.annotation.history.freeze();
-        self.mode = 'drawing';
+        self.mode = "drawing";
         self.currentArea = self.createDrawingRegion(self.createRegionOptions({ x, y }));
       },
       finishDrawing() {
@@ -198,13 +211,13 @@ const DrawingTool = types
       _resetState() {
         self.annotation.setIsDrawing(false);
         self.annotation.history.unfreeze();
-        self.mode = 'viewing';
+        self.mode = "viewing";
       },
     };
   });
 
-const TwoPointsDrawingTool = DrawingTool.named('TwoPointsDrawingTool')
-  .views(self => ({
+const TwoPointsDrawingTool = DrawingTool.named("TwoPointsDrawingTool")
+  .views((self) => ({
     get defaultDimensions() {
       return {
         width: self.MIN_SIZE.X,
@@ -212,7 +225,7 @@ const TwoPointsDrawingTool = DrawingTool.named('TwoPointsDrawingTool')
       };
     },
   }))
-  .actions(self => {
+  .actions((self) => {
     const DEFAULT_MODE = 0;
     const DRAG_MODE = 1;
     const TWO_CLICKS_MODE = 2;
@@ -225,7 +238,7 @@ const TwoPointsDrawingTool = DrawingTool.named('TwoPointsDrawingTool')
     };
 
     return {
-      updateDraw: throttle(function(x, y) {
+      updateDraw: throttle((x, y) => {
         if (currentMode === DEFAULT_MODE) return;
         self.draw(x, y);
       }, 48), // 3 frames, optimized enough and not laggy yet
@@ -234,16 +247,18 @@ const TwoPointsDrawingTool = DrawingTool.named('TwoPointsDrawingTool')
         const shape = self.getCurrentArea();
 
         if (!shape) return;
-        const isEllipse = shape.type.includes('ellipse');
+        const isEllipse = shape.type.includes("ellipse");
         const maxStageWidth = isFF(FF_DEV_3793) ? RELATIVE_STAGE_WIDTH : self.obj.stageWidth;
         const maxStageHeight = isFF(FF_DEV_3793) ? RELATIVE_STAGE_HEIGHT : self.obj.stageHeight;
 
-        let { x1, y1, x2, y2 } = isEllipse ? {
-          x1: shape.startX,
-          y1: shape.startY,
-          x2: x,
-          y2: y,
-        } : Utils.Image.reverseCoordinates({ x: shape.startX, y: shape.startY }, { x, y });
+        let { x1, y1, x2, y2 } = isEllipse
+          ? {
+              x1: shape.startX,
+              y1: shape.startY,
+              x2: x,
+              y2: y,
+            }
+          : Utils.Image.reverseCoordinates({ x: shape.startX, y: shape.startY }, { x, y });
 
         x1 = Math.max(0, x1);
         y1 = Math.max(0, y1);
@@ -267,8 +282,9 @@ const TwoPointsDrawingTool = DrawingTool.named('TwoPointsDrawingTool')
         modeAfterMouseMove = DEFAULT_MODE;
       },
 
-      mousedownEv(_, [x, y]) {
+      mousedownEv(ev, [x, y]) {
         if (!self.canStartDrawing()) return;
+        if (!self.isAllowedInteraction(ev)) return;
         startPoint = { x, y };
         if (currentMode === DEFAULT_MODE) {
           modeAfterMouseMove = DRAG_MODE;
@@ -302,8 +318,9 @@ const TwoPointsDrawingTool = DrawingTool.named('TwoPointsDrawingTool')
         self.finishDrawing(x, y);
       },
 
-      clickEv(_, [x, y]) {
+      clickEv(ev, [x, y]) {
         if (!self.canStartDrawing()) return;
+        if (!self.isAllowedInteraction(ev)) return;
         // @todo: here is a potential problem with endPoint
         // it may be incorrect due to it may be not set at this moment
         if (startPoint && endPoint && !self.comparePointsWithThreshold(startPoint, endPoint)) return;
@@ -316,8 +333,9 @@ const TwoPointsDrawingTool = DrawingTool.named('TwoPointsDrawingTool')
         }
       },
 
-      dblclickEv(_, [x, y]) {
+      dblclickEv(ev, [x, y]) {
         if (!self.canStartDrawing()) return;
+        if (!self.isAllowedInteraction(ev)) return;
 
         let dX = self.defaultDimensions.width;
         let dY = self.defaultDimensions.height;
@@ -339,13 +357,13 @@ const TwoPointsDrawingTool = DrawingTool.named('TwoPointsDrawingTool')
     };
   });
 
-const MultipleClicksDrawingTool = DrawingTool.named('MultipleClicksMixin')
+const MultipleClicksDrawingTool = DrawingTool.named("MultipleClicksMixin")
   .views(() => ({
     canStart() {
       return !this.current();
     },
   }))
-  .actions(self => {
+  .actions((self) => {
     let startPoint = { x: 0, y: 0 };
     let pointsCount = 0;
     let lastPoint = { x: -1, y: -1 };
@@ -372,10 +390,10 @@ const MultipleClicksDrawingTool = DrawingTool.named('MultipleClicksMixin')
         pointsCount++;
       },
       listenForClose() {
-        console.error('MultipleClicksMixin model needs to implement listenForClose method in actions');
+        console.error("MultipleClicksMixin model needs to implement listenForClose method in actions");
       },
       closeCurrent() {
-        console.error('MultipleClicksMixin model needs to implement closeCurrent method in actions');
+        console.error("MultipleClicksMixin model needs to implement closeCurrent method in actions");
       },
       finishDrawing() {
         if (!self.isDrawing) return;
@@ -394,6 +412,7 @@ const MultipleClicksDrawingTool = DrawingTool.named('MultipleClicksMixin')
         self._resetState();
       },
       mousedownEv(ev, [x, y]) {
+        if (!self.isAllowedInteraction(ev)) return;
         lastPoint = { x, y };
         lastEvent = MOUSE_DOWN_EVENT;
       },
@@ -412,6 +431,7 @@ const MultipleClicksDrawingTool = DrawingTool.named('MultipleClicksMixin')
         lastPoint = { x: -1, y: -1 };
       },
       _clickEv(ev, [x, y]) {
+        if (!self.isAllowedInteraction(ev)) return;
         if (self.current()) {
           if (
             pointsCount === 1 &&
@@ -450,16 +470,13 @@ const MultipleClicksDrawingTool = DrawingTool.named('MultipleClicksMixin')
         }
 
         self.nextPoint(x + dX, y);
-        self.nextPoint(
-          x + dX / 2,
-          y + Math.sin(Math.PI / 3) * dY,
-        );
+        self.nextPoint(x + dX / 2, y + Math.sin(Math.PI / 3) * dY);
         self.finishDrawing();
       },
     };
   });
 
-const ThreePointsDrawingTool = DrawingTool.named('ThreePointsDrawingTool')
+const ThreePointsDrawingTool = DrawingTool.named("ThreePointsDrawingTool")
   .views((self) => ({
     canStart() {
       return !this.current();
@@ -471,7 +488,7 @@ const ThreePointsDrawingTool = DrawingTool.named('ThreePointsDrawingTool')
       };
     },
   }))
-  .actions(self => {
+  .actions((self) => {
     let points = [];
     let lastEvent = 0;
     const DEFAULT_MODE = 0;
@@ -491,10 +508,8 @@ const ThreePointsDrawingTool = DrawingTool.named('ThreePointsDrawingTool')
         return !self.isIncorrectControl();
       },
       updateDraw: (x, y) => {
-        if (currentMode === DEFAULT_MODE)
-          self.getCurrentArea()?.draw(x, y, points);
-        else if (currentMode === DRAG_MODE)
-          self.draw(x, y);
+        if (currentMode === DEFAULT_MODE) self.getCurrentArea()?.draw(x, y, points);
+        else if (currentMode === DRAG_MODE) self.draw(x, y);
       },
 
       nextPoint(x, y) {
@@ -546,11 +561,12 @@ const ThreePointsDrawingTool = DrawingTool.named('ThreePointsDrawingTool')
       },
       mousedownEv(ev, [x, y]) {
         if (!self.canStartDrawing() || self.annotation.isDrawing) return;
+        if (!self.isAllowedInteraction(ev)) return;
         lastEvent = MOUSE_DOWN_EVENT;
         startPoint = { x, y };
-        self.mode = 'drawing';
+        self.mode = "drawing";
       },
-      mouseupEv(ev, [x, y]) {
+      mouseupEv(_ev, [x, y]) {
         if (!self.canStartDrawing()) return;
         if (self.isDrawing) {
           if (currentMode === DRAG_MODE) {
@@ -562,12 +578,13 @@ const ThreePointsDrawingTool = DrawingTool.named('ThreePointsDrawingTool')
       },
       clickEv(ev, [x, y]) {
         if (!self.canStartDrawing()) return;
+        if (!self.isAllowedInteraction(ev)) return;
         if (currentMode === DEFAULT_MODE) {
           self._clickEv(ev, [x, y]);
         }
         lastEvent = CLICK_EVENT;
       },
-      _clickEv(ev, [x, y]) {
+      _clickEv(_ev, [x, y]) {
         if (points.length >= 2) {
           self.finishDrawing(x, y);
         } else if (points.length === 0) {
@@ -578,9 +595,10 @@ const ThreePointsDrawingTool = DrawingTool.named('ThreePointsDrawingTool')
         }
       },
 
-      dblclickEv(_, [x, y]) {
+      dblclickEv(ev, [x, y]) {
         lastEvent = DBL_CLICK_EVENT;
         if (!self.canStartDrawing()) return;
+        if (!self.isAllowedInteraction(ev)) return;
 
         let dX = self.defaultDimensions.width;
         let dY = self.defaultDimensions.height;

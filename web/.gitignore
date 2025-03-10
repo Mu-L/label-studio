@@ -6,6 +6,7 @@ tmp
 
 # dependencies
 node_modules
+dist
 
 # IDEs and editors
 /.idea
@@ -47,7 +48,7 @@ report.*.json
 !.env.local
 !*.lock
 
-libs/**/package.json
+libs/version
 libs/**/package-lock.json
 libs/**/yarn.lock
 

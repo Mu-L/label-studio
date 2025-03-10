@@ -4,10 +4,12 @@ short: Project settings
 tier: enterprise
 type: guide
 order: 0
-order_enterprise: 59
+order_enterprise: 119
 meta_title: Project settings
 meta_description: Brief descriptions of all the options available when configuring the project settings
-section: "Project Management"
+section: "Create & Manage Projects"
+parent: "manage_projects"
+parent_enterprise: "manage_projects"
 date: 2024-02-06 22:28:14
 ---
 
@@ -58,6 +60,50 @@ Select how you want to distribute tasks to annotators for labeling.
 | ------------- | ------------ |
 | **Auto**         | Annotators are automatically assigned to tasks, and the option to manually assign annotators is disabled. Automatic assignments are distributed to all users with the Annotator role who are project [members](#Members) <br /><br />You can further define the automatic assignment workflow in the [**Quality** settings](#Quality).  |
 | **Manual** | You must [manually assign](manage_data#Assign-annotators-to-tasks) annotators to tasks. Annotators are not be able to view any labeling tasks until they have those tasks manually assigned to them. |
+
+</dd>
+
+<dt id="lock-tasks">Task Reservation</dt>
+
+<dd>
+
+Control how long tasks are reserved for annotators. 
+
+Task reservation ensures that the tasks an annotator starts working on are temporarily reserved by them, preventing other annotators from accessing the same tasks until the reservation expires. This helps manage task allocation and keeps project progress efficient. 
+
+!!! note
+
+    Task reservation takes the [**Annotations per task minimum**](#overlap) into consideration. For example, if your overlap is `2`, then two annotators can reserve a task simultaneously. 
+
+    When [**Distribute Labeling Tasks**](#distribute-tasks) is set to **Manual**, the Task Reservation setting is hidden because it does not apply. 
+
+A task reservation is put in place as soon as an annotator opens the task. The reservation remains until one of the following happens (whichever happens first):
+
+* The task reservation time expires. 
+* The annotator submits the task. 
+* The annotator skips the task, and the project **Skip Queue** setting is either **Requeue skipped tasks to others** or **Ignore skipped**.
+
+**Recommended reservation time** 
+
+By default, the task reservation time is 1440 minutes (1 day). This is the maximum time allowed for task reservations.
+
+When setting a reservation time, you should aim to allow a little above the max amount of time it should take to complete a task. 
+
+* **Notes about allowing too much time**
+
+    If you allow too much time for task reservation, you could risk some users becoming blocked. 
+
+    For example, say you have multiple annotators working on a project. Your minimum annotation overlap is set to `2`. 
+
+    If some of your annotators move through their labeling queue looking for the easiest tasks to complete, they could inadvertently leave a large number of tasks locked. Depending on the size of the project and how many annotators you have working, this could result in some annotators unable to continue their work until the task reservation time expires. 
+
+* **Notes about allowing too little time**
+
+    If you set the reservation time too low, you may find that you have many tasks that exceed your minimum overlap setting. 
+
+    For example, say you have multiple annotators working on a project. Your minimum annotation overlap is set to `2`. 
+    
+    Two annotators begin working on a task and it takes them both 15 minutes to complete, but your reservation time is 10 minutes. This means that after 10 minutes, another annotator can also begin working on that task - resulting in 3 annotations on the task rather than 2 (your minimum annotator overlap).
 
 </dd>
 
@@ -145,9 +191,20 @@ Configure additional settings for annotators.
 | ------------- | ------------ |
 | **Show Skip button**         | Use this to show or hide the **Skip** action for annotators. |
 | **Allow empty annotations** | This determines whether annotators can submit a task without making any annotations on it. If enabled, annotators can submit a task even if they haven't added any labels or regions, resulting in an empty annotation. |
-| **Show the Data Manager to annotators** | When disabled, annotators can only enter the label stream. When enabled, annotators can access the Data Manager, where they can select which tasks to complete from the Data Manager list. <br /><br />However, some information is still hidden from annotators and they can only view a subset of the Data Manager columns. For example, they cannot see columns such as Annotators, Agreement, Reviewers, and more. |
-| **Reveal pre-annotations interactively** | When enabled, pre-annotations are not automatically displayed to an annotator. Instead, annotators can choose when to reveal these pre-annotations as they work on the task, providing them with the opportunity to first assess the image or text without the influence of the model's predictions. |
+| **Show the Data Manager to annotators** | When disabled, annotators can only enter the label stream. When enabled, annotators can access the Data Manager. The tasks that are available to them depend on the labeling distribution mode: <ul><li>Auto distribution: Annotators can only see tasks that they have already completed or have created a draft.</li><li>Manual distribution: Annotators can only see the tasks that they have been assigned.</li></ul>Note that some information is still hidden from annotators and they can only view a subset of the Data Manager columns. For example, they cannot see columns such as Annotators, Agreement, Reviewers, and more. |
+| **Reveal pre-annotations interactively** | When enabled, pre-annotation regions (such as bounding boxes or text spans) are not automatically displayed to the annotator. Instead, annotators can draw a selection rectangle to reveal pre-annotation regions within that area. This allows annotators to first review the image or text without being influenced by the model’s predictions. Pre-annotation regions must have the attribute `"hidden": true`. <br /><br />This feature is particularly useful when there are multiple low-confidence regions that you prefer not to display all at once to avoid clutter. |
 | **Annotators must leave a comment on skip** | When enabled, annotators are required to leave a comment when skipping a task. |
+
+</dd>
+
+<dt id="predictions">Live Predictions</dt>
+
+<dd>
+
+If you have an ML backend or model connected, or if you're using [Prompts](prompts_overview) to generate predictions, you can use this setting to determine whether tasks should be pre-labeled using predictions. For more information, see [Integrate Label Studio into your machine learning pipeline](ml) and [Generate predictions from a prompt](prompts_predictions). 
+
+Use the drop-down menu to select the predictions source. For example, you can select a [connected model](#Model) or a set of [predictions](#Predictions). 
+
 
 </dd>
 
@@ -188,7 +245,7 @@ Enable **Show before reviewing** to display a pop-up message to reviewers when t
 
 <dd>
 
-Configure additional settings for reviewers.
+Configure what is required for a task to be considered reviewed. 
 
 <table>
 <thead>
@@ -219,6 +276,80 @@ In a task where multiple annotators submitted labels, the reviewer needs to acce
 
 </td>
 </tr>
+</table>
+
+</dd>
+
+<dt id="reject-options">Reject Options</dt>
+
+<dd>
+
+Configure what rejection options are available to reviewers. 
+
+<table>
+<thead>
+    <tr>
+      <th>Field</th>
+      <th>Description</th>
+    </tr>
+</thead>
+<tr>
+<td>
+
+**Requeue rejected tasks back to annotators**
+</td>
+<td>
+
+When a reviewer clicks **Reject**, the annotation is reassigned back to the annotator. 
+
+</td>
+</tr>
+<td>
+
+**Remove rejected tasks from labeling queue**
+</td>
+<td>
+
+When a reviewer clicks **Reject**, the annotation is not reassigned back to the annotator. 
+
+</td>
+</tr>
+<tr>
+<td>
+
+**Allow reviewer to choose: Requeue or Remove**
+</td>
+<td>
+
+Reviewers see the following options:
+
+* **Accept**
+* **Remove** -- When selected, the annotation is rejected and removed from the labeling queue. 
+* **Requeue** -- When selected, the annotation is rejected and then reassigned back to the annotator.  
+
+For example, a reviewer might decide to requeue an annotation that is nearly correct but just needs a slight change. However, an annotation with numerous errors may be easier to simply reject entirely and remove from the queue. 
+
+Note that when you click **Remove**, the annotation is also marked as cancelled/skipped. This is reflected in various metrics (for example, Data Manager columns and dashboards), and differentiates between the two rejection actions in the API with `was_cancelled: true`. 
+
+</td>
+</tr>
+</table>
+
+</dd>
+
+<dt id="review-settings">Additional settings</dt>
+
+<dd>
+
+Configure additional reviewer settings
+
+<table>
+<thead>
+    <tr>
+      <th>Field</th>
+      <th>Description</th>
+    </tr>
+</thead>
 <tr>
 <td>
 
@@ -237,7 +368,11 @@ If enabled, a reviewer can only see tasks to which they've been assigned. Otherw
 </td>
 <td>
 
-If enabled, a reviewer only sees tasks that have met the **Annotations per task minimum** threshold. 
+When enabled, a reviewer only sees tasks that have been completed by all required annotators. 
+
+If your project is using auto distribution, then this means a reviewer only sees tasks that have met the **Annotations per task minimum** threshold. 
+
+If your project is using manual distribution, then this means a reviewer only sees tasks in which all assigned annotators have submitted an annotation. 
 
 Note that in most cases, skipped tasks do not contribute towards meeting the minimum.  
 
@@ -253,17 +388,6 @@ Note that in most cases, skipped tasks do not contribute towards meeting the min
 When disabled, reviewers can only enter the review stream. When enabled, reviewers can access the Data Manager, where they can select which tasks to review. 
 
 However, some information is still hidden from reviewers and they can only view a subset of the Data Manager columns. For example, they cannot see columns such as who the other Reviewers are. 
-
-</td>
-</tr>
-<tr>
-<td>
-
-**Requeue rejected tasks back to annotators**
-</td>
-<td>
-
-Rejected tasks are reassigned back to the annotator. 
 
 </td>
 </tr>
@@ -365,12 +489,12 @@ Select the [metric](stats#Available-agreement-metrics) that should determine tas
 </td>
 <td>
 
+Note that to see these options, the project must be set up to [automatically distribute tasks](#distribute-tasks).
+
 You can set a low agreement strategy to ensure that a task is not marked complete until it meets 1) the required [overlap](#overlap) and 2) a minimum agreement level.  
 
 * **Do nothing** - Tasks with a low agreement can be marked complete; no additional actions are taken. 
 * **Assign additional annotator** - Automatically assign an additional annotator to tasks with low agreement. 
-
-    Note that your project must be set up to [automatically distribute tasks](#distribute-tasks).
 
 </td>
 </tr>
@@ -443,33 +567,34 @@ To assign a project-level role, first add the person to your project. Once added
 !!! note
     This is only available for users who have the Annotator or Reviewer role applied at the organization level. Users with Manager, Administrator, and Owner role cannot have their permissions downgraded to Annotator or Reviewer on a per-project basis. 
 
-## Machine learning
+## Model
 
-Click **Add Model** to connect an machine learning (ML) backend to your project. For more information about using ML backends, see [Machine learning integration](ml).
+Click **Connect Model** to connect a machine learning (ML) backend to your project. For more information on connecting a model, see [Machine learning integration](ml).
 
-<dl>
-
-<dt>ML-Assisted Labeling</dt>
-
-<dd>
+You have the following configuration options:
 
 | Field          | Description    |
 | ------------- | ------------ |
-| **Start model training after any annotations are submitted or updated**         | Triggers the connected ML backend to start the training process each time an annotation is created or updated. <br /><br />This is part of an [active learning loop](active_learning) where the model can be continuously improved as new annotations are added to the dataset. When this setting is enabled, the ML backend's `fit()` method is called, allowing the model to learn from the most recent annotations and potentially improve its predictions for subsequent tasks.   |
-| **Retrieve predictions when loading a task automatically** | When enabled, Label Studio automatically fetches predictions from the connected ML backend for each task as it is loaded by an annotator. This means that when an annotator navigates to a new task, Label Studio sends a request to the ML backend to retrieve any available predictions for that task, which are then displayed to the annotator. <br /><br />When disabled, someone must manually retrieve predictions. This can be done in using the **Actions** menu in the Data Manager.  |
-| **Show predictions to annotators in the Label Stream and Quick View** | When enabled, predictions are shown to annotators during the labeling process. This is enabled by default.<br /><br />Disable this option to hide predictions from annotators. For example, you might want to hide predictions to prevent bias. |
+| **Start model training on annotation submission**         | Triggers the connected ML backend to start the training process each time an annotation is created or updated. <br /><br />This is part of an [active learning loop](active_learning) where the model can be continuously improved as new annotations are added to the dataset. When this setting is enabled, the ML backend's `fit()` method is called, allowing the model to learn from the most recent annotations and potentially improve its predictions for subsequent tasks.   |
+| [**Interactive preannotations**](ml#interactive-pre-annotations)         | (Available when creating or editing a model connection)<br /><br />Enable this option to allow the model to assist with the labeling process by providing real-time predictions or suggestions as annotators work on tasks.  <br /><br />In other words, as you interact with data (for example, by drawing a region on an image, highlighting text, or asking an LLM a question), the ML backend receives this input and returns predictions based on it.   |
 
-</dd>
 
-<dt>Model Version</dt>
+And the following actions are available from the overflow menu next to a connected model:
 
-<dd>
+| Action          | Description    |
+| ------------- | ------------ |
+| **Start Training**         | Manually initiate training. Use this action if you want to control when the model training occurs, such as after a specific number of annotations have been collected or at certain intervals.  |
+| **Send Test Request**         | (Available from the overflow menu next to the connected model)<br /><br />Use this for troubleshooting and sending a test resquest to the connected model.   |
+| **Edit**         | Edit the model name, URL, and parameters. For more information, see [Connect a model to Label Studio](ml#Connect-a-model-to-Label-Studio). |
+| **Delete**         | Remove the connection to the model. |
 
-If you have multiple versions, you can select which version is used to generate predictions. 
+## Predictions
 
-</dd>
+From here you can view predictions that have been imported, generated with [Prompts](prompts_predictions), or generated when executing the **Batch Predictions** action from the Data Manager. For more information on using predictions, see [Import pre-annotated data into Label Studio](predictions). 
 
-</dl>
+To remove predictions from the project, click the overflow menu next to the predictions set and select **Delete**.  
+
+To determine which predictions are show to annotators, use the [**Annotation > Live Predictions** section](#Annotation). 
 
 ## Cloud storage
 
@@ -498,3 +623,4 @@ From here, you can access actions that result in data loss, and should be used w
 * **Delete Project**
 
     Deleting a project permanently removes all tasks, annotations, and project data from Label Studio.
+

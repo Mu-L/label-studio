@@ -3,11 +3,13 @@ title: Import pre-annotated data into Label Studio
 short: Import pre-annotations
 type: guide
 tier: all
-order: 260
-order_enterprise: 160
+order: 163
+order_enterprise: 163
 meta_title: Import pre-annotated data into Label Studio
 meta_description: Import predicted labels, predictions, pre-annotations, or pre-labels into Label Studio for your data labeling, machine learning, and data science projects.
-section: "Import and Export"
+section: "Import & Export"
+parent: "tasks"
+parent_enterprise: "tasks"
 ---
 
 If you have predictions generated for your dataset from a model, either as pre-annotated tasks or pre-labeled tasks, you can import the predictions with your dataset into Label Studio for review and correction. Label Studio automatically displays the pre-annotations that you import on the Labeling page for each task. 
@@ -685,7 +687,7 @@ You can sort the prediction scores for each labeled region using the **Regions**
 
 ## Import brush segmentation pre-annotations in RLE format
 
-If you want to import pre-annotations for brush mask image segmentation using the [BrushLabels tag](/tags/brushlabels.html), you must convert the masks to RLE format first. The [Label Studio Converter](https://github.com/heartexlabs/label-studio-converter) package has some helper functions for this. See the following for common conversion cases and guidance.
+If you want to import pre-annotations for brush mask image segmentation using the [BrushLabels tag](/tags/brushlabels.html), you must convert the masks to RLE format first. The [Label Studio Converter](https://github.com/HumanSignal/label-studio-converter) package has some helper functions for this. See the following for common conversion cases and guidance.
 
 Install Label Studio Converter:
 ```
@@ -705,19 +707,19 @@ from label_studio_converter import brush
     ```
   
 - To convert OpenCV contours, use 
-[`brush.contour2rle(contours, contour_id, img_width, img_height)`](https://github.com/heartexlabs/label-studio-converter/blob/master/label_studio_converter/brush.py#L310).
+[`brush.contour2rle(contours, contour_id, img_width, img_height)`](https://github.com/HumanSignal/label-studio-converter/blob/master/label_studio_converter/brush.py#L310).
 
 - To convert an image from path (jpg, png. bmp), use 
-[`brush.image2rle(path)`](https://github.com/heartexlabs/label-studio-converter/blob/master/label_studio_converter/brush.py#L343).
+[`brush.image2rle(path)`](https://github.com/HumanSignal/label-studio-converter/blob/master/label_studio_converter/brush.py#L343).
 
 - To prepare the pre-annotation, use 
-[`brush.image2annotation(path, label_name, from_name, to_name, ground_truth=False, model_version=None, score=None)`](https://github.com/heartexlabs/label-studio-converter/blob/master/label_studio_converter/brush.py#L361)
+[`brush.image2annotation(path, label_name, from_name, to_name, ground_truth=False, model_version=None, score=None)`](https://github.com/HumanSignal/label-studio-converter/blob/master/label_studio_converter/brush.py#L361)
 
-For more assistance, review this [example code creating a Label Studio task with pre-annotations](https://github.com/heartexlabs/label-studio-converter/blob/master/tests/test_brush.py#L11) for brush labels.
+For more assistance, review this [example code creating a Label Studio task with pre-annotations](https://github.com/HumanSignal/label-studio-converter/blob/master/tests/test_brush.py#L11) for brush labels.
 
 ## Import OCR pre-annotations 
 
-Import pre-annotations for optical character recognition (OCR), such as output from [tesseract like in this example blog post](/blog/Improve-OCR-quality-with-Tesseract-and-Label-Studio.html). 
+Import pre-annotations for optical character recognition (OCR), such as output from [tesseract like in this example blog post](https://labelstud.io/blog/improve-ocr-quality-for-receipt-processing-with-tesseract-and-label-studio). 
 
 In this example, import pre-annotations for OCR tasks using the [OCR template](/templates/optical_character_recognition.html):
 
@@ -820,4 +822,14 @@ Import pre-annotated tasks into Label Studio [using the UI](tasks.html#Import-da
 
 ### Troubleshooting pre-annotations
 
-See [Troubleshooting ML Backends & Predictions](https://support.humansignal.com/hc/en-us/sections/23627938255117-ML-Backend-Predictions) in the HumanSignal support center. 
+<div class="opensource-only">
+
+See [Troubleshooting pre-annotations](troubleshooting#Pre-annotations).
+
+</div>
+
+<div class="enterprise-only">
+
+See [Troubleshooting ML Backends & Predictions](https://support.humansignal.com/hc/en-us/sections/23627938255117-ML-Backend-Predictions) in the HumanSignal support center.
+
+</div>

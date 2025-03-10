@@ -19,16 +19,16 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - '3.8'
-          - '3.9'
           - '3.10'
           - '3.11'
+          - '3.12'
+          - '3.13'
 
     env:
       DJANGO_SETTINGS_MODULE: core.settings.label_studio
       COVERAGE_PROCESS_START: 1
       LOG_DIR: pytest_logs
-      collect_analytics: true
+      COLLECT_ANALYTICS: true
       DEBUG_CONTEXTLOG: true
       LABEL_STUDIO_TEST_ENVIRONMENT: false
       SENTRY_ENVIRONMENT: tests-ubuntu-sqlite
@@ -45,19 +45,22 @@ jobs:
         with:
           ref: ${{ inputs.head_sha }}
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: "Install poetry"
+        env:
+          POETRY_VERSION: ${{ vars.POETRY_VERSION }}
+        run: pipx install "poetry==${POETRY_VERSION}"
+
+      - name: "Set up Python ${{ matrix.python-version }}"
         id: setup_python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '${{ matrix.python-version }}'
+          cache: 'poetry'
 
       - name: Install OS dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install libffi7 libldap2-dev libsasl2-dev libssl-dev libxml2-dev libxslt-dev python3-dev
-
-      - name: Set up Poetry
-        uses: snok/install-poetry@v1
+          sudo apt-get install libffi8 libldap2-dev libsasl2-dev libssl-dev libxml2-dev libxslt-dev python3-dev
 
       - name: Install Python dependencies
         run: poetry install --with test
@@ -80,7 +83,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ '3.10' ]
+        python-version: [ '3.12' ]
     env:
       DJANGO_SETTINGS_MODULE: core.settings.label_studio
       DJANGO_DB: default
@@ -88,7 +91,7 @@ jobs:
       PYTHONPATH: .
       LOG_LEVEL: ERROR
       LOG_DIR: pytest_logs
-      collect_analytics: true
+      COLLECT_ANALYTICS: true
       DEBUG_CONTEXTLOG: true
       LABEL_STUDIO_TEST_ENVIRONMENT: false
       SENTRY_ENVIRONMENT: tests-ubuntu-postgresql
@@ -129,19 +132,22 @@ jobs:
         with:
           ref: ${{ inputs.head_sha }}
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: "Install poetry"
+        env:
+          POETRY_VERSION: ${{ vars.POETRY_VERSION }}
+        run: pipx install "poetry==${POETRY_VERSION}"
+
+      - name: "Set up Python ${{ matrix.python-version }}"
         id: setup_python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '${{ matrix.python-version }}'
+          cache: 'poetry'
 
       - name: Install OS dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install libffi7 libldap2-dev libsasl2-dev libssl-dev libxml2-dev libxslt-dev python3-dev
-
-      - name: Set up Poetry
-        uses: snok/install-poetry@v1
+          sudo apt-get install libffi8 libldap2-dev libsasl2-dev libssl-dev libxml2-dev libxslt-dev python3-dev
 
       - name: Install Python dependencies
         run: poetry install --with test
@@ -159,7 +165,8 @@ jobs:
         run: poetry run pytest --cov=. --cov-report=xml -vv -n auto
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4.1.0
+        if: ${{ github.event.pull_request.head.repo.fork == false && github.event.pull_request.user.login != 'dependabot[bot]' }}
+        uses: codecov/codecov-action@v5.4.0
         with:
           name: codecov-python-${{ matrix.python-version }}
           flags: pytests
@@ -175,8 +182,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - '3.8'
-          - '3.9'
+          - '3.10'
 
     # required for poetry action
     # see https://github.com/marketplace/actions/install-poetry-action#running-on-windows
@@ -188,7 +194,7 @@ jobs:
       DJANGO_SETTINGS_MODULE: core.settings.label_studio
       COVERAGE_PROCESS_START: 1
       LOG_DIR: pytest_logs
-      collect_analytics: true
+      COLLECT_ANALYTICS: true
       DEBUG_CONTEXTLOG: true
       LABEL_STUDIO_TEST_ENVIRONMENT: false
       SENTRY_ENVIRONMENT: tests-windows-sqlite
@@ -205,26 +211,20 @@ jobs:
         with:
           ref: ${{ inputs.head_sha }}
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: "Install poetry"
+        env:
+          POETRY_VERSION: ${{ vars.POETRY_VERSION }}
+        run: pipx install "poetry==${POETRY_VERSION}"
+
+      - name: "Set up Python ${{ matrix.python-version }}"
         id: setup_python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Set up Poetry
-        uses: snok/install-poetry@v1
+          python-version: '${{ matrix.python-version }}'
+          cache: 'poetry'
 
       - name: Install Python dependencies
         run: poetry install --with test
-
-      - name: Fix sqlite.dll for python < 3.9
-        if: ${{ contains(matrix.python-version, '3.8') }}
-        run: |
-          set PYTHONIOENCODING=utf-8
-          set PYTHONLEGACYWINDOWSSTDIO=utf-8
-          bash -c "poetry run label-studio init my_project --agree-fix-sqlite --force-fix-sqlite"
-          cp sqlite3.dll %pythonLocation%/DLLs/sqlite3.dll
-        shell: cmd
 
       - name: Init project
         run: |
@@ -235,6 +235,6 @@ jobs:
 
       - name: Test with pytest
         env:
-          collect_analytics: 0
+          COLLECT_ANALYTICS: 0
         working-directory: label_studio
         run: poetry run pytest -vv -n auto

@@ -32,6 +32,17 @@ In both options, the following tags are required:
     <Taxonomy name="taxonomy" toName="text">
     ```
 
+## Taxonomy as a labeling tool
+
+Typically, the `<Taxonomy>` tag is used to perform classification tasks. However, if you set `labeling="true"`, you can apply your taxonomy choices to regions within text. This can be especially useful for NER projects. 
+
+Note that the `labeling` parameter is only supported when using `<Text> `or `<HyperText>` object tags. 
+
+![Screenshot of taxonomy as NER](/images/templates-misc/taxonomy_ner.png)
+
+!!! info Tip
+    You can use the `color` parameter on your taxonomy [`<Choice>`](/tags/choice) to color-code selected regions within the text. 
+
 ## Taxonomies defined using nested `Choice` tags
 
 Use the [`Choice`](/tags/choice.html) tag to specify the taxonomy. Nest choices under [`Choice`](/tags/choice.html) tags to create layers in the taxonomy.
@@ -65,7 +76,7 @@ To call an external taxonomy, remove the `Choice` tags and specify the `apiUrl` 
 <Taxonomy name="taxonomy" toName="text" apiUrl="<YOUR_TAXONOMY_URL>" />
 ```
 
-!!! note Beta feature
+!!! todo Beta feature
     The feature to call external taxonomies through `apiUrl` is currently in its beta phase.  
 
 For example: 
@@ -103,7 +114,7 @@ The `apiUrl` must be accessible to Label Studio. You can accomplish this in seve
 1. Save your taxonomy in a separate bucket from your task data. 
 
     If you are unable to use a separate bucket for your taxonomy, see the workaround below. 
-2. [Follow these instructions](storage) to set up cloud storage for Label Studio. This should be a separate connection from your other storage connections.
+2. [Follow these instructions](/guide/storage) to set up cloud storage for Label Studio. This should be a separate connection from your other storage connections.
 
     <div class="admonition note"><p class="admonition-title">note</p><p>Do not sync this storage connection. If you do, you will need to delete the task that is automatically created when syncing the taxonomy.</p></div>
 

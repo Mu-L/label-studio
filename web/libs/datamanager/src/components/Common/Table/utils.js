@@ -1,6 +1,7 @@
 export const prepareColumns = (columns, hidden) => {
+  if (!hidden?.length) return [...columns];
   return columns.filter((col) => {
-    return !(hidden ?? []).includes(col.id);
+    return !hidden.includes(col.id);
   });
 };
 
@@ -21,7 +22,7 @@ export const getProperty = (object, path) => {
 };
 
 const resolveStyle = (col, decoration, cellView) => {
-  let result = {};
+  const result = {};
 
   [cellView, decoration].forEach((item) => {
     const cellStyle = (item ?? {}).style;

@@ -1,6 +1,6 @@
 {
-  "message": "Merge branch 'develop' into 'fb-HUMSIG-37-visuals'",
-  "commit": "309851f803a1995c36b11f416f80cff709b6be2f",
-  "date": "2024-04-04T16:34:09.000Z",
-  "branch": "fb-HUMSIG-37-visuals"
+  "message": "refactor: LEAP-1907: Migrate EnterpriseBadge to UI library (#7173)",
+  "commit": "a5927325db38e1dbdf8d2c7106dfe8eb2da4207d",
+  "date": "2025-03-10T16:01:34.000Z",
+  "branch": "develop"
 }

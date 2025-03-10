@@ -1,13 +1,13 @@
 ---
 title: Sync data from external storage
-short: Cloud storage setup 
+short: Add project storage 
 type: guide
 tier: all
-order: 265
-order_enterprise: 165
+order: 151
+order_enterprise: 151
 meta_title: Cloud and External Storage Integration
 meta_description: "Label Studio Documentation for integrating Amazon AWS S3, Google Cloud Storage, Microsoft Azure, Redis, and local file directories with Label Studio."
-section: "Import and Export"
+section: "Import & Export"
 
 ---
 
@@ -24,11 +24,22 @@ Set up the following cloud and other storage systems with Label Studio:
 
 When working with an external cloud storage connection, keep the following in mind:
 
-* Label Studio doesn’t import the data stored in the bucket, but instead creates *references* to the objects. Therefore, you must have full access control on the data to be synced and shown on the labeling screen.
-* Sync operations with external buckets only goes one way. It either creates tasks from objects on the bucket (Source storage) or pushes annotations to the output bucket (Target storage). Changing something on the bucket side doesn’t guarantee consistency in results.
-* We recommend using a separate bucket folder for each Label Studio project.
+* Label Studio doesn't import the data stored in the bucket, but instead creates *references* to the objects. Therefore, you must have full access control on the data to be synced and shown on the labeling screen.
+* Sync operations with external buckets only goes one way. It either creates tasks from objects on the bucket (Source storage) or pushes annotations to the output bucket (Target storage). Changing something on the bucket side doesn't guarantee consistency in results.
+* We recommend using a separate bucket folder for each Label Studio project. 
+* Storage Regions: To minimize latency and improve efficiency, store data in cloud storage buckets that are geographically closer to your team rather than near the Label Studio server.
 
-For more troubleshooting information, see [Troubleshooting Import, Export, & Storage](https://support.humansignal.com/hc/en-us/sections/16982163062029-Import-Export-Storage) in the HumanSignal support center. 
+<div class="opensource-only">
+
+For more troubleshooting information, see [Troubleshooting Label Studio](troubleshooting).
+
+</div>
+
+<div class="enterprise-only">
+
+For more troubleshooting information, see [Troubleshooting Import, Export, & Storage](https://support.humansignal.com/hc/en-us/sections/16982163062029-Import-Export-Storage) in the HumanSignal support center.
+
+</div>
 
 ## How external storage connections and sync work
 
@@ -36,9 +47,9 @@ You can add source storage connections to sync data from an external source to a
 
 ### Source storage
 
-Label Studio does not automatically sync data from source storage. If you upload new data to a connected cloud storage bucket, sync the storage connection using the UI to add the new labeling tasks to Label Studio without restarting. You can also use the API to set up or sync storage connections. See [Label Studio API](/api) and locate the relevant storage connection type. 
+Label Studio does not automatically sync data from source storage. If you upload new data to a connected cloud storage bucket, sync the storage connection using the UI to add the new labeling tasks to Label Studio without restarting. You can also use the API to set up or sync storage connections. See [Label Studio API](https://api.labelstud.io/api-reference/introduction/getting-started) and locate the relevant storage connection type. 
 
-Task data synced from cloud storage is not stored in Label Studio. Instead, the data is accessed using a URL. You can also secure access to cloud storage using cloud storage credentials. For details, see [Secure access to cloud storage](security.html#Secure-access-to-cloud-storage).
+Task data synced from cloud storage is not stored in Label Studio. Instead, the data is accessed using presigned URLs. You can also secure access to cloud storage using VPC and IP restrictions for your storage. For details, see [Secure access to cloud storage](security.html#Secure-access-to-cloud-storages).
 
 #### Source storage permissions
 
@@ -250,7 +261,7 @@ After you [configure access to your S3 bucket](#Configure-access-to-your-S3-buck
     - Adjust the counter for how many minutes the pre-signed URLs are valid.
 8. Click **Add Storage**.
 
-After adding the storage, click **Sync** to collect tasks from the bucket, or make an API call to [sync import storage](/api#operation/api_storages_s3_sync_create).
+After adding the storage, click **Sync** to collect tasks from the bucket, or make an API call to [sync import storage](https://api.labelstud.io/api-reference/api-reference/import-storage/s-3/sync).
 
 ### Set up target storage connection in the Label Studio UI
 After you [configure access to your S3 bucket](#Configure-access-to-your-S3-bucket), do the following to set up Amazon S3 as a target storage connection:
@@ -270,7 +281,15 @@ After you [configure access to your S3 bucket](#Configure-access-to-your-S3-buck
     - <div class="enterprise-only">(Optional) Enable **Can delete objects from storage** if you want to delete annotations stored in the S3 bucket when they are deleted in Label Studio. The storage credentials associated with the bucket must include the ability to delete bucket objects. Leave disabled to not take any action on annotations if they are deleted in Label Studio. </div>
 8. Click **Add Storage**.
 
-After adding the storage, click **Sync** to collect tasks from the bucket, or make an API call to [sync export storage](/api#operation/api_storages_export_s3_sync_create).
+After adding the storage, click **Sync** to collect tasks from the bucket, or make an API call to [sync export storage](https://api.labelstud.io/api-reference/api-reference/export-storage/s-3/sync)
+
+<div class="opensource-only">
+
+### S3 connection with IAM role access 
+
+In Label Studio Enterprise, you can use an IAM role configured with an external ID to access S3 bucket contents securely. An 'external ID' is a unique identifier that enhances security by ensuring that only trusted entities can assume the role, reducing the risk of unauthorized access. See how to [Set up an S3 connection with IAM role access](https://docs.humansignal.com/guide/storage#Set-up-an-S3-connection-with-IAM-role-access)</span> in the Enterprise documentation.
+
+</div>
 
 <div class="enterprise-only">
 
@@ -279,11 +298,28 @@ After adding the storage, click **Sync** to collect tasks from the bucket, or ma
 If you want to use a revocable method to grant Label Studio access to your Amazon S3 bucket, use an IAM role and its temporary security credentials instead of an access key ID and secret. This added layer of security is only available in Label Studio Enterprise. For more details about security in Label Studio and Label Studio Enterprise, see [Secure Label Studio](security.html).
 
 #### Set up an IAM role in Amazon AWS
+
+!!! note "Notice for Label Studio Cloud users"
+    <ul><li><p>On <strong>April 7th 2025</strong>, new storage connections will require an update to the AWS principal in your IAM role policy.</p>
+
+    <p>You must replace this: <code>"arn:aws:iam::490065312183:user/rw_bucket"</code></p>
+        
+    <p>With this: <code>"arn:aws:iam::490065312183:role/label-studio-app-production"</code></p>
+        
+    <p>(See step 3 below for more information.)</p>
+        
+    <p>Existing S3 IAM role-based-access storages added to Label Studio will continue to work as is without any changes necessary.</p></li>
+    
+    <li><p>On <strong>July 7th 2025</strong>, we will no longer support the legacy IAM user, and all policies should be updated to the new IAM role.</p></li></ul> 
+
 Set up an IAM role in Amazon AWS to use with Label Studio.
 
-1. In the Label Studio UI, open the **Organization** page to get an `External ID` to use for the IAM role creation in Amazon AWS. You must be an administrator to view the Organization page.
-2. Follow the [Amazon AWS documentation to create an IAM role](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html) in your AWS account. <br/>Make sure to require an external ID and do not require multi-factor authentication when you set up the role. Select an existing permissions policy, or create one that allows programmatic access to the bucket.
+1. From Label Studio, go to **Organization** page to retrieve your organization's `External ID`. You must be an Owner or Admin to view the Organization page.
+2. Follow the [Amazon AWS documentation to create an IAM role](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html) in your AWS account. 
+
+    Make sure to require an external ID and do not require multi-factor authentication when you set up the role. Select an existing permissions policy, or create one that allows programmatic access to the bucket.
 3. Create a trust policy using the external ID. Use the following example: 
+
 ```json
 {
   "Version": "2012-10-17",
@@ -292,7 +328,7 @@ Set up an IAM role in Amazon AWS to use with Label Studio.
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam::490065312183:user/rw_bucket"
+          "arn:aws:iam::490065312183:role/label-studio-app-production"
         ]
       },
       "Action": "sts:AssumeRole",
@@ -307,6 +343,10 @@ Set up an IAM role in Amazon AWS to use with Label Studio.
   ]
 }
 ```
+
+!!! attention
+    If your bucket is already connected to a Label Studio project, and that connection was created before April 7, 2025,  you will need to add the new role (listed above) along with your old user to continue using your existing project. 
+
 4. After you create the IAM role, note the Amazon Resource Name (ARN) of the role. You need it to set up the S3 source storage in Label Studio.
 5. Assign role policies to the role to allow it to access your S3 bucket. Replace `<your_bucket_name>` with your S3 bucket name. Use the following role policy for S3 source storage:
 ```json
@@ -378,7 +418,7 @@ In the Label Studio UI, do the following to set up the connection:
     - Adjust the counter for how many minutes the pre-signed URLs are valid.
 8. Click **Add Storage**.
 
-After adding the storage, click **Sync** to collect tasks from the bucket, or make an API call to [sync import storage](https://app.heartex.com/docs/api#operation/api_storages_s3s_sync_create).
+After adding the storage, click **Sync** to collect tasks from the bucket, or make an API call to [sync import storage](https://api.labelstud.io/api-reference/api-reference/import-storage/s-3/sync).
 
 #### Create a target storage connection to S3 in the Label Studio UI
 In the Label Studio UI, do the following to set up a target storage connection to save annotations in an S3 bucket with IAM role access set up:
@@ -397,7 +437,7 @@ In the Label Studio UI, do the following to set up a target storage connection t
     - (Optional) Enable **Can delete objects from storage** if you want to delete annotations stored in the S3 bucket when they are deleted in Label Studio. The storage credentials associated with the bucket must include the ability to delete bucket objects. Leave disabled to not take any action on annotations if they are deleted in Label Studio.
 8. Click **Add Storage**.
 
-After adding the storage, click **Sync** to collect tasks from the bucket, or make an API call to [sync export storage](https://app.heartex.com/docs/api#operation/api_storages_export_s3s_sync_create).
+After adding the storage, click **Sync** to collect tasks from the bucket, or make an API call to [sync export storage](https://api.labelstud.io/api-reference/introduction/getting-started).
 
 </div>
 
@@ -405,6 +445,72 @@ After adding the storage, click **Sync** to collect tasks from the bucket, or ma
 You can also create a storage connection using the Label Studio API. 
 - See [Create new import storage](/api#operation/api_storages_s3_create) then [sync the import storage](/api#operation/api_storages_s3_sync_create).
 - See [Create export storage](/api#operation/api_storages_export_s3_create) and after annotating, [sync the export storage](/api#operation/api_storages_export_s3_sync_create).
+
+### IP Filtering and VPN for Enhanced Security for S3 storage
+
+To maximize security and data isolation behind a VPC, restrict access to the Label Studio backend and internal network users by setting IP restrictions for storage, allowing only trusted networks to perform task synchronization and generate pre-signed URLs. Additionally, establish a secure connection between storage and users' browsers by configuring a VPC private endpoint or limiting storage access to specific IPs or VPCs. 
+
+Read more about [Source storage behind your VPC](security.html#Source-storage-behind-your-VPC).
+
+<details>
+<summary>Bucket Policy Example for S3 storage</summary>
+<br>
+
+!!! warning
+    These example bucket policies explicitly deny access to any requests outside the allowed IP addresses. Even the user that entered the bucket policy can be denied access to the bucket if the user doesn't meet the conditions. Therefore, make sure to review the bucket policy carefully before saving it. If you get accidentally locked out, see [How to regain access to an Amazon S3 bucket](https://repost.aws/knowledge-center/s3-accidentally-denied-access).
+
+ **Helpful Resources**:
+   - [AWS Documentation: VPC Endpoints for Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/privatelink-interface-endpoints.html)
+   - [AWS Documentation: How to Configure VPC Endpoints](https://docs.aws.amazon.com/vpc/latest/privatelink/endpoint-services-overview.html)
+
+Go to your S3 bucket and then **Permissions > Bucket Policy** in the AWS management console. Add the following policy:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "DenyAccessUnlessFromSaaSIPsForListAndGet",
+            "Effect": "Deny",
+            "Principal": {
+                "AWS": "arn:aws:iam::490065312183:user/rw_bucket"
+            },
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::YOUR_BUCKET_NAME",
+                "arn:aws:s3:::YOUR_BUCKET_NAME/*"
+            ],
+            "Condition": {
+                "NotIpAddress": {
+                    "aws:SourceIp": [
+                      //// IP ranges for app.humansignal.com from the documentation
+                        "x.x.x.x/32",
+                        "x.x.x.x/32",
+                        "x.x.x.x/32"
+                    ]
+                }
+            }
+        },
+//// Optional
+        {
+            "Sid": "DenyAccessUnlessFromVPNForGetObject",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::YOUR_BUCKET_NAME/*",
+            "Condition": {
+                "NotIpAddress": {
+                    "aws:SourceIp": "YOUR_VPN_SUBNET/32"
+                }
+            }
+        }
+    ]
+}
+```
+</details>
 
 ## Google Cloud Storage
 
@@ -447,12 +553,11 @@ In the Label Studio UI, do the following to set up the connection:
     - Enable **Treat every bucket object as a source file** if your bucket contains BLOB storage files such as JPG, MP3, or similar file types. This setting creates a URL for each bucket object to use for labeling, such as `gs://my-gcs-bucket/image.jpg`. Leave this option disabled if you have multiple JSON files in the bucket with one task per JSON file.
     - Choose whether to disable **Use pre-signed URLs**. If your tasks contain gs://... links, they must be pre-signed in order to be displayed in the browser.
     - Adjust the counter for how many minutes the pre-signed URLs are valid.
-8. In the **Google Application Credentials** field, add a JSON file with the GCS credentials you created to manage authentication for your bucket. You can also use the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to specify this file. For example:
-```bash
-  export GOOGLE_APPLICATION_CREDENTIALS=json-file-with-GCP-creds-23441-8f8sd99vsd115a.json
-  ```
+8. In the **Google Application Credentials** field, add a JSON file with the GCS credentials you created to manage authentication for your bucket. 
+
+    **On-prem users:** Alternatively, you can use the `GOOGLE_APPLICATION_CREDENTIALS` environment variable and/or set up Application Default Credentials, so that users do not need to configure credentials manually. See [Application Default Credentials for enhanced security](#Application-Default-Credentials-for-enhanced-security-for-GCS) below.
 9. Click **Add Storage**.
-10. Repeat these steps for **Target Storage** to sync completed data annotations to a bucket.
+10.  Repeat these steps for **Target Storage** to sync completed data annotations to a bucket.
 
 After adding the storage, click **Sync** to collect tasks from the bucket, or make an API call to [sync import storage](/api#operation/api_storages_gcs_sync_create).
 
@@ -460,6 +565,94 @@ After adding the storage, click **Sync** to collect tasks from the bucket, or ma
 You can also create a storage connection using the Label Studio API. 
 - See [Create new import storage](/api#operation/api_storages_gcs_create) then [sync the import storage](/api#operation/api_storages_gcs_sync_create). 
 - See [Create export storage](/api#operation/api_storages_export_gcs_create) and after annotating, [sync the export storage](/api#operation/api_storages_export_gcs_sync_create).
+
+### Application Default Credentials for enhanced security for GCS
+
+If you use Label Studio on-premises with Google Cloud Storage, you can set up [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc) to provide cloud storage authentication globally for all projects, so users do not need to configure credentials manually.
+
+The recommended way to to do this is by using the `GOOGLE_APPLICATION_CREDENTIALS` environment variable. For example:
+
+```bash
+  export GOOGLE_APPLICATION_CREDENTIALS=json-file-with-GCP-creds-23441-8f8sd99vsd115a.json
+  ```
+
+### IP filtering for enhanced security for GCS
+
+Google Cloud Storage offers [bucket IP filtering](https://cloud.google.com/storage/docs/ip-filtering-overview) as a powerful security mechanism to restrict access to your data based on source IP addresses. This feature helps prevent unauthorized access and provides fine-grained control over who can interact with your storage buckets.
+
+Read more about [Source storage behind your VPC](security.html#Source-storage-behind-your-VPC).
+
+**Common Use Cases:**
+- Restrict bucket access to only your organization's IP ranges
+- Allow access only from specific VPC networks in your infrastructure
+- Secure sensitive data by limiting access to known IP addresses
+- Control access for third-party integrations by whitelisting their IPs
+
+<details>
+<summary>How to Set Up IP Filtering</summary>
+<br>
+
+1. First, create your GCS bucket through the console or CLI
+2. Create a JSON configuration file to define IP filtering rules. You have two options:
+   For public IP ranges:
+```json
+{
+  "mode": "Enabled", 
+  "publicNetworkSource": {
+    "allowedIpCidrRanges": [
+      "xxx.xxx.xxx.xxx", // Your first IP address
+      "xxx.xxx.xxx.xxx", // Your second IP address
+      "xxx.xxx.xxx.xxx/xx" // Your IP range in CIDR notation
+    ]
+  }
+}
+```
+
+<div class="enterprise-only">
+
+!!! note
+    If you're using Label Studio Enterprise at app.humansignal.com and accessing it from your office network:
+    - Add Label Studio Enterprise outgoing IP addresses (see [IP ranges](saas.html#IP-range))
+    - Add your office network IP range (e.g. 192.168.1.0/24)
+    - If both Label Studio Enterprise and your office are on the same VPN network (e.g. 10.0.0.0/16), you only need to add that VPN subnet
+
+</div>
+
+For VPC network sources:
+```json
+{
+  "mode": "Enabled",
+  "vpcNetworkSources": [
+    {
+      "network": "projects/PROJECT_ID/global/networks/NETWORK_NAME",
+      "allowedIpCidrRanges": [
+        RANGE_CIDR
+      ]
+    }
+  ]
+}
+```
+
+3. Apply the IP filtering rules to your bucket using the following command:
+```bash
+gcloud alpha storage buckets update gs://BUCKET_NAME --ip-filter-file=IP_FILTER_CONFIG_FILE
+```
+
+4. To remove IP filtering rules when no longer needed:
+```bash
+gcloud alpha storage buckets update gs://BUCKET_NAME --clear-ip-filter
+```
+
+#### Limitations to Consider
+- Maximum of 200 IP CIDR blocks across all rules
+- Maximum of 25 VPC networks in the IP filter rules
+- Not supported for dual-regional buckets
+- May affect access from certain Google Cloud services
+
+[Read more about GCS IP filtering](https://cloud.google.com/storage/docs/ip-filtering-overview)
+
+</details>
+
 
 ##  Microsoft Azure Blob storage
 
@@ -573,7 +766,7 @@ Add these variables to your environment setup:
 - `LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=true`
 - `LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/home/user` (or `LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=C:\\data\\media` for Windows).
 
-Without these settings, Local storage and URLs in tasks that point to local files won't work. Keep in mind that serving data from the local file system can be a **security risk**. See [Set environment variables](start.html#Set_environment_variables) for more about using environment variables.
+Without these settings, Local storage and URLs in tasks that point to local files won't work. Keep in mind that serving data from the local file system can be a **security risk**. See [Set environment variables](https://labelstud.io/guide/start#Set-environment-variables) for more about using environment variables.
 
 ### Set up connection in the Label Studio UI
 In the Label Studio UI, do the following to set up the connection:
@@ -587,13 +780,18 @@ In the Label Studio UI, do the following to set up the connection:
 4. In the dialog box that appears, select **Local Files** as the storage type.
 5. In the **Storage Title** field, type a name for the storage to appear in the Label Studio UI.
 6. Specify an **Absolute local path** to the directory with your files. The local path must be an absolute path and include the `LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT` value. 
-   For example, if `LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/home/user`, then your local path must be `/home/user/dataset1`. For more about that environment variable, see [Run Label Studio on Docker and use local storage](start.html#Run_Label_Studio_on_Docker_and_use_local_storage).    
-7. (Optional) In the **File Filter Regex** field, specify a regular expression to filter bucket objects. Use `.*` to collect all objects.
-8. (Optional) Toggle **Treat every bucket object as a source file**. 
+
+    For example, if `LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/home/user`, then your local path must be `/home/user/dataset1`. For more about that environment variable, see [Run Label Studio on Docker and use local storage](https://labelstud.io/guide/start#Run-Label-Studio-on-Docker-and-use-Local-Storage).  
+
+!!! note
+    If you are using Windows, ensure that you use backslashes when entering your **Absolute local path**.  
+
+1. (Optional) In the **File Filter Regex** field, specify a regular expression to filter bucket objects. Use `.*` to collect all objects.
+2. (Optional) Toggle **Treat every bucket object as a source file**. 
    - Enable this option if you want to create Label Studio tasks from media files automatically, such as JPG, MP3, or similar file types. Use this option for labeling configurations with one source tag.
    - Disable this option if you want to import tasks in Label Studio JSON format directly from your storage. Use this option for complex labeling configurations with HyperText or multiple source tags.    
-9. Click **Add Storage**.
-10. Repeat these steps for **Add Target Storage** to use a local file directory for exporting.
+3. Click **Add Storage**.
+4.  Repeat these steps for **Add Target Storage** to use a local file directory for exporting.
 
 After adding the storage, click **Sync** to collect tasks from the bucket, or make an API call to [sync import storage](/api#operation/api_storages_localfiles_sync_create).
 
@@ -652,9 +850,19 @@ You can also create a storage connection using the Label Studio API.
 - See [Create export storage](/api#operation/api_storages_export_localfiles_create) and after annotating, [sync the export storage](/api#operation/api_storages_export_localfiles_sync_create).
 
 ### Set up local storage with Docker
-If you're using Label Studio in Docker, you need to mount the local directory that you want to access as a volume when you start the Docker container. See [Run Label Studio on Docker and use local storage](start.html#Run-Label-Studio-on-Docker-and-use-local-storage).
+If you're using Label Studio in Docker, you need to mount the local directory that you want to access as a volume when you start the Docker container. See [Run Label Studio on Docker and use local storage](https://labelstud.io/guide/start#Run-Label-Studio-on-Docker-and-use-Local-Storage).
 
 
 ### Troubleshooting cloud storage
 
-See [Troubleshooting Import, Export, and Storage](https://support.humansignal.com/hc/en-us/sections/16982163062029-Import-Export-Storage) in the HumanSignal support center. 
+<div class="opensource-only">
+
+For more troubleshooting information, see [Troubleshooting Label Studio](troubleshooting).
+
+</div>
+
+<div class="enterprise-only">
+
+For more troubleshooting information, see [Troubleshooting Import, Export, & Storage](https://support.humansignal.com/hc/en-us/sections/16982163062029-Import-Export-Storage) in the HumanSignal support center.
+
+</div>

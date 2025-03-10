@@ -1,12 +1,12 @@
 ---
-title: Label and annotate data
+title: Labeling guide
 tier: all 
 type: guide
-order: 210
-order_enterprise: 110
+order: 134
+order_enterprise: 134
 meta_title: Label and annotate data
 meta_description: Label and annotate data to create bounding boxes, label text spans, set up relations. Filter and sort project data for machine learning dataset creation.
-section: "Labeling"
+section: "Create & Manage Projects"
 
 ---
 
@@ -131,6 +131,75 @@ To label tasks multiple times while the minimum annotations required is set to o
 4. Click **Submit** to save your annotation.
 5. Click the next task in the data manager to open the quick labeling view for that task and repeat steps 2-4.
 
+<div class="enterprise-only">
+
+## Bulk labeling
+
+Bulk labeling is useful when you have a large set of tasks that share a common label or annotation that you want to apply in one go. For example:
+
+* **Data classification**: Quickly label multiple tasks with the same category. 
+* **Filtering and grouping**: Use filters to isolate tasks matching specific criteria (e.g., tasks you know are all “Approved”), then label them in bulk. 
+* **Speed and consistency**: Avoid repetitive labeling for items that can confidently share a label.
+
+#### Supported data types
+
+Bulk labeling supports all data types (e.g. images, text, audio, video). 
+
+#### Supported labeling tasks
+
+Bulk labeling supports classification tasks and text area input. 
+
+You can use any combination of supported control tags, and all object tags (e.g. `<Image>`, `<Text>`, `<Video`) are supported. 
+
+The following control tags can be assigned through the bulk labeling action:
+
+* [Choices](/tags/choices.html)
+* [DateTime](/tags/datetime.html)
+* [Number](/tags/number.html)
+* [Rating](/tags/rating.html)
+* [Taxonomy](/tags/taxonomy.html)
+* [TextArea](/tags/textarea.html)
+
+If your labeling configuration includes control tags not listed above, the **Bulk labeling** action is not accessible. 
+ 
+
+!!! note Limitations
+    Note the following:
+    * At this time, only global classification tasks are supported. This means that the control tag cannot have `perItem` or `perRegion` enabled. 
+    * Lead time is not calculated for annotations performed through the bulk labeling option. 
+
+#### Bulk labeling panel 
+
+When you perform bulk labeling, your options open in a side panel. Note that you can expand or collapse this panel as necessary by clicking the expand/collapse icons or by pressing `shift` + `.`.
+
+![Gif opening and closing bulk label drawer](/images/label/bulk-expand.gif)
+
+### List view
+
+You can perform bulk labeling from the list view in the Data Manager. This is especially useful if you want to use filters to label a subset of results. 
+
+Select the checkboxes next to the tasks you want to annotate and then click the drop-down menu next to **Label *n* Tasks**. Select **Bulk label**. This opens a panel with your labeling options (see [above](#Bulk-labeling-panel)).  
+
+![Screenshot of Bulk label option from List view](/images/label/bulk-list-view.png)
+
+Make your selections and click **Submit**, 
+
+### Grid view
+
+You can use the grid view to visually inspect and then select tasks for bulk annotation. 
+
+To select tasks from the grid view, you can click the checkboxes next to them or open each and select tasks as you navigate through them. 
+
+![Gif showing selecting images in grid view](/images/label/bulk-grid-navigating.gif)
+
+Once selected, click the drop-down menu next to **Label *n* Tasks**. Select **Bulk label**. This opens a panel with your labeling options (see [above](#Bulk-labeling-panel)).
+
+!!! info Tip
+    There are hotkeys for selecting the task, scrolling, zooming, and navigating between tasks. To see a list of the available hotkeys, click the help icon above the task:
+
+    ![Screenshot highlighting help icon](/images/label/bulk-hotkeys.png)
+
+</div>
 
 ## Perform ML-assisted labeling with interactive preannotations
 
@@ -212,7 +281,7 @@ If you want to change the hotkeys used for specific actions, set the `EDITOR_KEY
 ```
 EDITOR_KEYMAP='{"annotation:submit":{"key": "shift+s","description": "My Custom Submit Hotkey!"}}'
 ```
-This overwrites the existing hotkey mapping with your custom mapping. See [more about how to set environment variables](start.html#Set-environment-variables). 
+This overwrites the existing hotkey mapping with your custom mapping. See [more about how to set environment variables](https://labelstud.io/guide/start#Set-environment-variables). 
 
 Refer to the full list of customizable hotkeys in the [`keymap.json` file](https://github.com/HumanSignal/label-studio/blob/develop/web/libs/editor/src/core/settings/keymap.json) to update a different hotkey combination. 
 
@@ -300,7 +369,7 @@ The **Outliner** is a replacement for the existing interface with a multiple-pan
 Outliner is the area where you can see all the details about annotation, regions, and labeling history. It is split into two panels, named **Outliner** and **Details**. Figure 3 shows the appearance of the **Outliner** panel on the right of the image and **Details** panel on the left of the image. 
 
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/outliner-details-panels-view.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/outliner-details-panels-view.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 3: View of Outliner and Details panels view </i>
  
 **Panel actions**
@@ -310,46 +379,46 @@ There are two panels which is the outliner for the regions list. These panels ca
 The **Outliner** and **Details** panels are collapsible and detachable, so you can arrange them the way you want. Figure 4 shows the **Collapse details** button which allows you to collapse the **Details** panel and use the remaining portion of the screen. 
 
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/collapse-details-button.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/collapse-details-button.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 4: Collapsed details button</i>
 
 Now, the **Details** panel is collapsed, and you can expand it by clicking the **Expand Details** icon.
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/details-collapsed-button-view.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/details-collapsed-button-view.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 5: Details panel in collapsed view</i>
 
 The details panel is displayed in expanded view to explore the feature. 
 
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/details-panel-expanded-view.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/details-panel-expanded-view.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 6: Details panel in expanded view</i>
 
 To collapse the **Outliner** panel, click on the **Collapse outliner** icon. 
 
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/collapse-outliner-button.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/collapse-outliner-button.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 7: Collapse outliner button</i>
 
 Now, the **Outliner** panel is collapsed, and you can expand it by clicking the **Expand Details** icon.
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/outliner-collapsed-view.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/outliner-collapsed-view.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 8: Outliner panel in collapsed view</i>
 
 The **Expand Details** icon expands the **Outliner** panel for further actions.
 
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/expand-outliner-button.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/expand-outliner-button.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 9: Outliner panel with expand outliner icon</i>
 
 The Outliner panel is displayed in expanded view to explore the feature. 
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/outliner-expanded-view.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/outliner-expanded-view.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 10: Outliner panel in expanded view</i>
 
 These panels are detachable, so you can place them wherever you want on the screen, and you can resize them. 
 
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/details-floating-dock.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/details-floating-dock.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 11: Details panel in floating dock view</i>
  
 **Region editor** 
@@ -357,7 +426,7 @@ These panels are detachable, so you can place them wherever you want on the scre
 You can edit regions with a focus on labeling. You can zoom in and precise control over the numbers and dimensions of each region attribute. The image region details like height, rotation, and so on can be changed using the inputs in the **Details** panel. Now, you can collapse all panels and get the maximum working area. This feature design makes some actions clear in the product user interface.
 
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/region-editor.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/region-editor.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 12: Edit regions using different attributes</i>
 
 
@@ -367,7 +436,7 @@ You can edit regions with a focus on labeling. You can zoom in and precise contr
 <div class="enterprise-only"> <p>The <b>Comments</b> box is available inside the outliner. </p></div>
 
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/comments-box.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/comments-box.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 13: Comments box </i>
 
 !!! note
@@ -400,19 +469,19 @@ You can group or sort regions using the following functionality from the drop-do
 You can also order your regions by **Order by Score** or **Order by Time** options. 
 
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/group-by-label-sorted-by-score-expanded-dog-icon.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/group-by-label-sorted-by-score-expanded-dog-icon.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 14: Group by label using sorted by score</i>
 
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/group-by-tool-sorted-by-score.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/group-by-tool-sorted-by-score.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 15: Group by tool using sorted by score</i>
 
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/group-by-label-sorted-by-score.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/group-by-label-sorted-by-score.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 16: Group by label using sorted by score</i>
 
 <br>
-<div style="margin:auto; text-align:center;"><img src="/images/manual-grouping.png" style="opacity: 0.8" class="gif-border"/></div>
+<img src="/images/manual-grouping.png" style="opacity: 0.8" class="gif-border"/>
 <i>Figure 17: Manual grouping</i>
 
 **Prediction indication of the region**
@@ -444,5 +513,4 @@ OR
 
 1. Press CTRL button and start drawing bounding box over another one. 
 
-
-<!-- md annotation_ids.md -->
+{% insertmd includes/annotation_ids.md %}

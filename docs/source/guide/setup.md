@@ -1,12 +1,12 @@
 ---
-title: Labeling configuration
+title: Configure labeling interface
 type: guide
 tier: all
-order: 205
-order_enterprise: 105
+order: 107
+order_enterprise: 107
 meta_title: Set up labeling configuration interface
 meta_description: Customize your data labeling and annotation interface with templates or custom tag combinations for your machine learning and data science projects.
-section: "Labeling"
+section: "Create & Manage Projects"
 ---
 
 All labeling activities in Label Studio occur in the context of a project. After you [create a project](setup_project.html#Create-a-project) and [import data](tasks.html), set up the labeling interface and labeling configuration for your project. This setup process is essential to your labeling project.
@@ -52,7 +52,7 @@ To accept a suggestion, you can click to select it, or press the Tab key while t
 
 ## Customize a template
 
-You can customize a [labeling config template](/templates) or use a custom configuration that you create from scratch using [tags](/tags). If you create a custom configuration that might be useful to other Label Studio users, consider [contributing the configuration as a template](https://github.com/heartexlabs/label-studio/tree/develop/label_studio/annotation_templates).
+You can customize a [labeling config template](/templates) or use a custom configuration that you create from scratch using [tags](/tags). If you create a custom configuration that might be useful to other Label Studio users, consider [contributing the configuration as a template](https://github.com/HumanSignal/label-studio/tree/develop/label_studio/annotation_templates).
 
 The labeling configuration for a project is an XML file that contains three types of tags specific to Label Studio.
 

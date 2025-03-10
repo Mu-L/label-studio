@@ -1,13 +1,16 @@
-
 export const API_CONFIG = {
   gateway: `${window.APP_SETTINGS.hostname}/api`,
   endpoints: {
     // Users
     users: "/users",
+    updateUser: "PATCH:/users/:pk",
+    updateUserAvatar: "POST:/users/:pk/avatar",
+    deleteUserAvatar: "DELETE:/users/:pk/avatar",
     me: "/current-user/whoami",
 
     // Organization
     memberships: "/organizations/:pk/memberships",
+    userMemberships: "/organizations/:pk/memberships/:userPk",
     inviteLink: "/invite",
     resetInviteLink: "POST:/invite/reset-token",
 
@@ -34,7 +37,7 @@ export const API_CONFIG = {
     dataSummary: "/projects/:pk/summary",
 
     // DM
-    deleteTabs: 'DELETE:/dm/views/reset',
+    deleteTabs: "DELETE:/dm/views/reset",
 
     // Storages
     listStorages: "/storages/:target?",
@@ -65,7 +68,7 @@ export const API_CONFIG = {
     exportFormats: "/projects/:pk/export/formats",
 
     // Version
-    version: '/version',
+    version: "/version",
 
     // Webhook
     webhooks: "/webhooks",
@@ -74,6 +77,18 @@ export const API_CONFIG = {
     createWebhook: "POST:/webhooks",
     deleteWebhook: "DELETE:/webhooks/:pk",
     webhooksInfo: "/webhooks/info",
+
+    // Product tours
+    getProductTour: "GET:/current-user/product-tour",
+    updateProductTour: "PATCH:/current-user/product-tour",
+
+    // Tokens
+    accessTokenList: "GET:/token",
+    accessTokenGetRefreshToken: "POST:/token",
+    accessTokenRevoke: "POST:/token/blacklist",
+
+    accessTokenSettings: "GET:/jwt/settings",
+    accessTokenUpdateSettings: "POST:/jwt/settings",
   },
   alwaysExpectJSON: false,
 };

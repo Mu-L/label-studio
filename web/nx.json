@@ -9,7 +9,6 @@
   },
   "targetDefaults": {
     "build": {
-      "dependsOn": ["^build"],
       "inputs": ["production", "^production"]
     },
     "e2e": {
@@ -20,21 +19,12 @@
     },
     "version": {
       "cache": true,
-      "inputs": [
-        "default",
-        "^production",
-        "{workspaceRoot}/tools/version.mjs"
-      ],
+      "inputs": ["default", "^production", "{workspaceRoot}/tools/version.mjs"],
       "outputs": ["{workspaceRoot}/dist/{projectRoot}/version.json"]
     },
     "build-storybook": {
       "cache": true,
-      "inputs": [
-        "default",
-        "^production",
-        "{projectRoot}/.storybook/**/*",
-        "{projectRoot}/tsconfig.storybook.json"
-      ]
+      "inputs": ["default", "^production", "{projectRoot}/.storybook/**/*", "{projectRoot}/tsconfig.storybook.json"]
     }
   },
   "namedInputs": {
@@ -46,7 +36,9 @@
       "!{projectRoot}/jest.config.[jt]s",
       "!{projectRoot}/**/*.stories.@(js|jsx|ts|tsx|mdx)",
       "!{projectRoot}/.storybook/**/*",
-      "!{projectRoot}/tsconfig.storybook.json"
+      "!{projectRoot}/tsconfig.storybook.json",
+      "!{projectRoot}/.eslintrc.json",
+      "!{projectRoot}/eslint.config.js"
     ],
     "sharedGlobals": ["{workspaceRoot}/babel.config.json"]
   },

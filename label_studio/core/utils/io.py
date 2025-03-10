@@ -1,6 +1,7 @@
 """This file and its contents are licensed under the Apache License 2.0. Please see the included NOTICE for copyright information and LICENSE for a copy of the license.
 """
 import glob
+import importlib
 import io
 import ipaddress
 import itertools
@@ -10,12 +11,12 @@ import socket
 from contextlib import contextmanager
 from tempfile import mkdtemp, mkstemp
 
-import pkg_resources
 import requests
 import ujson as json
 import yaml
 from appdirs import user_cache_dir, user_config_dir, user_data_dir
 from django.conf import settings
+from django.core.files.temp import NamedTemporaryFile
 from urllib3.util import parse_url
 
 # full path import results in unit test failures
@@ -30,7 +31,7 @@ def good_path(path):
 
 def find_node(package_name, node_path, node_type):
     assert node_type in ('dir', 'file', 'any')
-    basedir = pkg_resources.resource_filename(package_name, '')
+    basedir = importlib.resources.files(package_name).joinpath('')
     node_path = os.path.join(*node_path.split('/'))  # linux to windows compatibility
     search_by_path = '/' in node_path or '\\' in node_path
 
@@ -140,9 +141,14 @@ def read_yaml(filepath):
     return data
 
 
-def read_bytes_stream(filepath):
-    with open(filepath, mode='rb') as f:
-        return io.BytesIO(f.read())
+def path_to_open_binary_file(filepath) -> io.BufferedReader:
+    """
+    Copy the file at filepath to a named temporary file and return that file object.
+    Unusually, this function deliberately doesn't close the file; the caller is responsible for this.
+    """
+    tmp = NamedTemporaryFile()
+    shutil.copy2(filepath, tmp.name)
+    return tmp
 
 
 def get_all_dirs_from_dir(d):

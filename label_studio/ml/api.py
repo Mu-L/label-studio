@@ -6,10 +6,9 @@ import drf_yasg.openapi as openapi
 from core.feature_flags import flag_set
 from core.permissions import ViewClassPermission, all_permissions
 from django.conf import settings
-from django.http import Http404
 from django.utils.decorators import method_decorator
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_yasg.utils import swagger_auto_schema
+from drf_yasg.utils import no_body, swagger_auto_schema
 from ml.models import MLBackend
 from ml.serializers import MLBackendSerializer, MLInteractiveAnnotatingRequest
 from projects.models import Project, Task
@@ -20,11 +19,33 @@ from rest_framework.views import APIView
 
 logger = logging.getLogger(__name__)
 
+_ml_backend_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        'url': openapi.Schema(type=openapi.TYPE_STRING, description='ML backend URL'),
+        'project': openapi.Schema(type=openapi.TYPE_INTEGER, description='Project ID'),
+        'is_interactive': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Is interactive'),
+        'title': openapi.Schema(type=openapi.TYPE_STRING, description='Title'),
+        'description': openapi.Schema(type=openapi.TYPE_STRING, description='Description'),
+        'auth_method': openapi.Schema(
+            type=openapi.TYPE_STRING, description='Auth method', enum=['NONE', 'BASIC_AUTH']
+        ),
+        'basic_auth_user': openapi.Schema(type=openapi.TYPE_STRING, description='Basic auth user'),
+        'basic_auth_pass': openapi.Schema(type=openapi.TYPE_STRING, description='Basic auth password'),
+        'extra_params': openapi.Schema(type=openapi.TYPE_OBJECT, description='Extra parameters'),
+        'timeout': openapi.Schema(type=openapi.TYPE_INTEGER, description='Response model timeout'),
+    },
+    required=[],
+)
+
 
 @method_decorator(
     name='post',
     decorator=swagger_auto_schema(
         tags=['Machine Learning'],
+        x_fern_sdk_group_name='ml',
+        x_fern_sdk_method_name='create',
+        x_fern_audiences=['public'],
         operation_summary='Add ML Backend',
         operation_description="""
     Add an ML backend to a project using the Label Studio UI or by sending a POST request using the following cURL 
@@ -35,19 +56,16 @@ logger = logging.getLogger(__name__)
     """.format(
             host=(settings.HOSTNAME or 'https://localhost:8080')
         ),
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'project': openapi.Schema(type=openapi.TYPE_INTEGER, description='Project ID'),
-                'url': openapi.Schema(type=openapi.TYPE_STRING, description='ML backend URL'),
-            },
-        ),
+        request_body=_ml_backend_schema,
     ),
 )
 @method_decorator(
     name='get',
     decorator=swagger_auto_schema(
         tags=['Machine Learning'],
+        x_fern_sdk_group_name='ml',
+        x_fern_sdk_method_name='list',
+        x_fern_audiences=['public'],
         operation_summary='List ML backends',
         operation_description="""
     List all configured ML backends for a specific project by ID.
@@ -62,6 +80,7 @@ logger = logging.getLogger(__name__)
                 name='project', type=openapi.TYPE_INTEGER, in_=openapi.IN_QUERY, description='Project ID'
             ),
         ],
+        request_body=no_body,
     ),
 )
 class MLBackendListAPI(generics.ListCreateAPIView):
@@ -88,11 +107,23 @@ class MLBackendListAPI(generics.ListCreateAPIView):
         ml_backend = serializer.save()
         ml_backend.update_state()
 
+        project = ml_backend.project
+
+        # In case we are adding the model, let's set it as the default
+        # to obtain predictions. This approach is consistent with uploading
+        # offline predictions, which would be set automatically.
+        if project.show_collab_predictions and not project.model_version:
+            project.model_version = ml_backend.title
+            project.save(update_fields=['model_version'])
+
 
 @method_decorator(
     name='patch',
     decorator=swagger_auto_schema(
         tags=['Machine Learning'],
+        x_fern_sdk_group_name='ml',
+        x_fern_sdk_method_name='update',
+        x_fern_audiences=['public'],
         operation_summary='Update ML Backend',
         operation_description="""
     Update ML backend parameters using the Label Studio UI or by sending a PATCH request using the following cURL command:
@@ -102,12 +133,16 @@ class MLBackendListAPI(generics.ListCreateAPIView):
     """.format(
             host=(settings.HOSTNAME or 'https://localhost:8080')
         ),
+        request_body=_ml_backend_schema,
     ),
 )
 @method_decorator(
     name='get',
     decorator=swagger_auto_schema(
         tags=['Machine Learning'],
+        x_fern_sdk_group_name='ml',
+        x_fern_sdk_method_name='get',
+        x_fern_audiences=['public'],
         operation_summary='Get ML Backend',
         operation_description="""
     Get details about a specific ML backend connection by ID. For example, make a GET request using the
@@ -117,12 +152,16 @@ class MLBackendListAPI(generics.ListCreateAPIView):
     """.format(
             host=(settings.HOSTNAME or 'https://localhost:8080')
         ),
+        request_body=no_body,
     ),
 )
 @method_decorator(
     name='delete',
     decorator=swagger_auto_schema(
         tags=['Machine Learning'],
+        x_fern_sdk_group_name='ml',
+        x_fern_sdk_method_name='delete',
+        x_fern_audiences=['public'],
         operation_summary='Remove ML Backend',
         operation_description="""
     Remove an existing ML backend connection by ID. For example, use the
@@ -132,6 +171,7 @@ class MLBackendListAPI(generics.ListCreateAPIView):
     """.format(
             host=(settings.HOSTNAME or 'https://localhost:8080')
         ),
+        request_body=no_body,
     ),
 )
 @method_decorator(name='put', decorator=swagger_auto_schema(auto_schema=None))
@@ -155,6 +195,9 @@ class MLBackendDetailAPI(generics.RetrieveUpdateDestroyAPIView):
     name='post',
     decorator=swagger_auto_schema(
         tags=['Machine Learning'],
+        x_fern_sdk_group_name='ml',
+        x_fern_sdk_method_name='train',
+        x_fern_audiences=['public'],
         operation_summary='Train',
         operation_description="""
         After you add an ML backend, call this API with the ML backend ID to start training with 
@@ -179,11 +222,10 @@ class MLBackendDetailAPI(generics.RetrieveUpdateDestroyAPIView):
             },
         ),
         responses={
-            200: openapi.Response(title='Training OK', description='Training has successfully started.'),
+            200: openapi.Response(description='Training has successfully started.'),
             500: openapi.Response(
                 description='Training error',
                 schema=openapi.Schema(
-                    title='Error message',
                     description='Error message',
                     type=openapi.TYPE_STRING,
                     example='Server responded with an error.',
@@ -208,7 +250,10 @@ class MLBackendTrainAPI(APIView):
     name='post',
     decorator=swagger_auto_schema(
         tags=['Machine Learning'],
-        operation_summary='Predict',
+        x_fern_sdk_group_name='ml',
+        x_fern_sdk_method_name='test_predict',
+        x_fern_audiences=['internal'],
+        operation_summary='Test prediction',
         operation_description="""
         After you add an ML backend, call this API with the ML backend ID to run a test prediction on specific task data               
         """,
@@ -221,11 +266,10 @@ class MLBackendTrainAPI(APIView):
             ),
         ],
         responses={
-            200: openapi.Response(title='Predicting OK', description='Predicting has successfully started.'),
+            200: openapi.Response(description='Predicting has successfully started.'),
             500: openapi.Response(
                 description='Predicting error',
                 schema=openapi.Schema(
-                    title='Error message',
                     description='Error message',
                     type=openapi.TYPE_STRING,
                     example='Server responded with an error.',
@@ -246,9 +290,21 @@ class MLBackendPredictTestAPI(APIView):
         if random:
             task = Task.get_random(project=ml_backend.project)
             if not task:
-                raise Http404
+                return Response(
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    data={
+                        'detail': 'Project has no tasks to run prediction on, import at least 1 task to run prediction'
+                    },
+                )
 
             kwargs = ml_backend._predict(task)
+            if not kwargs:
+                return Response(
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    data={
+                        'detail': 'ML backend did not return any predictions, check ML backend logs for more details'
+                    },
+                )
             return Response(**kwargs)
 
         else:
@@ -262,6 +318,9 @@ class MLBackendPredictTestAPI(APIView):
     name='post',
     decorator=swagger_auto_schema(
         tags=['Machine Learning'],
+        x_fern_sdk_group_name='ml',
+        x_fern_sdk_method_name='predict_interactive',
+        x_fern_audiences=['public'],
         operation_summary='Request Interactive Annotation',
         operation_description="""
         Send a request to the machine learning backend set up to be used for interactive preannotations to retrieve a
@@ -278,7 +337,7 @@ class MLBackendPredictTestAPI(APIView):
         ],
         request_body=MLInteractiveAnnotatingRequest,
         responses={
-            200: openapi.Response(title='Annotating OK', description='Interactive annotation has succeeded.'),
+            200: openapi.Response(description='Interactive annotation has succeeded.'),
         },
     ),
 )
@@ -330,6 +389,9 @@ class MLBackendInteractiveAnnotating(APIView):
     name='get',
     decorator=swagger_auto_schema(
         tags=['Machine Learning'],
+        x_fern_sdk_group_name='ml',
+        x_fern_sdk_method_name='list_model_versions',
+        x_fern_audiences=['public'],
         operation_summary='Get model versions',
         operation_description='Get available versions of the model.',
         responses={'200': 'List of available versions.'},

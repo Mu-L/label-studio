@@ -3,7 +3,6 @@
 import datetime
 from typing import Optional
 
-from core.feature_flags import flag_set
 from core.utils.common import load_func
 from core.utils.db import fast_first
 from django.conf import settings
@@ -13,6 +12,7 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from organizations.models import Organization
 from rest_framework.authtoken.models import Token
@@ -131,7 +131,7 @@ class User(UserMixin, AbstractBaseUser, PermissionsMixin, UserLastActivityMixin)
             models.Index(fields=['date_joined']),
         ]
 
-    @property
+    @cached_property
     def avatar_url(self):
         if self.avatar:
             if settings.CLOUD_FILE_STORAGE_ENABLED:
@@ -149,11 +149,11 @@ class User(UserMixin, AbstractBaseUser, PermissionsMixin, UserLastActivityMixin)
         annotations = self.active_organization_annotations()
         return annotations.values_list('project').distinct().count()
 
-    @property
+    @cached_property
     def own_organization(self) -> Optional[Organization]:
         return fast_first(Organization.objects.filter(created_by=self))
 
-    @property
+    @cached_property
     def has_organization(self):
         return Organization.objects.filter(created_by=self).exists()
 
@@ -179,6 +179,9 @@ class User(UserMixin, AbstractBaseUser, PermissionsMixin, UserLastActivityMixin)
         """Return the short name for the user."""
         return self.first_name
 
+    def get_token(self) -> Token:
+        return Token.objects.filter(user=self).first()
+
     def reset_token(self) -> Token:
         Token.objects.filter(user=self).delete()
         return Token.objects.create(user=self)
@@ -186,7 +189,7 @@ class User(UserMixin, AbstractBaseUser, PermissionsMixin, UserLastActivityMixin)
     def get_initials(self, is_deleted=False):
         initials = '?'
 
-        if flag_set('fflag_feat_all_optic_114_soft_delete_for_churned_employees', user=self) and is_deleted:
+        if is_deleted:
             return 'DU'
 
         if not self.first_name and not self.last_name:

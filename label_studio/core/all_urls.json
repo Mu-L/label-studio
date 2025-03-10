@@ -150,6 +150,12 @@
         "decorators": ""
     },
     {
+        "url": "/api/projects/counts/",
+        "module": "projects.api.ProjectCountsListAPI",
+        "name": "projects:api:project-counts-list",
+        "decorators": ""
+    },
+    {
         "url": "/api/projects/<int:pk>/next/",
         "module": "projects.api.ProjectNextTaskAPI",
         "name": "projects:api:project-next",
@@ -306,6 +312,18 @@
         "decorators": ""
     },
     {
+        "url": "/api/dm/views/order/",
+        "module": "data_manager.api.ViewAPI",
+        "name": "data_manager:api:view-update-order",
+        "decorators": ""
+    },
+    {
+        "url": "/api/dm/views/order\\.<format>/",
+        "module": "data_manager.api.ViewAPI",
+        "name": "data_manager:api:view-update-order",
+        "decorators": ""
+    },
+    {
         "url": "/api/dm/views/<pk>/",
         "module": "data_manager.api.ViewAPI",
         "name": "data_manager:api:view-detail",
@@ -324,7 +342,7 @@
         "decorators": ""
     },
     {
-        "url": "/api/dm/\\.<format>/",
+        "url": "/api/dm/<drf_format_suffix:format>",
         "module": "rest_framework.routers.APIRootView",
         "name": "data_manager:api:api-root",
         "decorators": ""
@@ -462,7 +480,7 @@
         "decorators": ""
     },
     {
-        "url": "/api/\\.<format>/",
+        "url": "/api/<drf_format_suffix:format>",
         "module": "rest_framework.routers.APIRootView",
         "name": "api-root",
         "decorators": ""
@@ -507,6 +525,12 @@
         "url": "/api/current-user/whoami",
         "module": "users.api.UserWhoAmIAPI",
         "name": "current-user-whoami",
+        "decorators": ""
+    },
+    {
+        "url": "/api/current-user/product-tour",
+        "module": "users.product_tours.api.ProductTourAPI",
+        "name": "product-tour",
         "decorators": ""
     },
     {
@@ -594,7 +618,7 @@
         "decorators": ""
     },
     {
-        "url": "/api/\\.<format>/",
+        "url": "/api/<drf_format_suffix:format>",
         "module": "rest_framework.routers.APIRootView",
         "name": "tasks:api-predictions:api-root",
         "decorators": ""
@@ -943,7 +967,7 @@
     },
     {
         "url": "/api/ml/<int:pk>/predict/test",
-        "module": "ml.api.MLBackendPredictAPI",
+        "module": "ml.api.MLBackendPredictTestAPI",
         "name": "ml:api:ml-predict-test",
         "decorators": ""
     },
@@ -1032,7 +1056,7 @@
         "decorators": ""
     },
     {
-        "url": "/api/\\.<format>/",
+        "url": "/api/<drf_format_suffix:format>",
         "module": "rest_framework.routers.APIRootView",
         "name": "labels_manager:api-labels:api-root",
         "decorators": ""
@@ -1620,6 +1644,12 @@
         "decorators": ""
     },
     {
+        "url": "/django-rq/queues/<queue_index>/failed/clear/",
+        "module": "django_rq.views.delete_failed_jobs",
+        "name": "rq_delete_failed_jobs",
+        "decorators": ""
+    },
+    {
         "url": "/django-rq/queues/<queue_index>/scheduled/",
         "module": "django_rq.views.scheduled_jobs",
         "name": "rq_scheduled_jobs",
@@ -1686,9 +1716,33 @@
         "decorators": ""
     },
     {
+        "url": "/django-rq/queues/<queue_index>/<job_id>/stop/",
+        "module": "django_rq.views.stop_job",
+        "name": "rq_stop_job",
+        "decorators": ""
+    },
+    {
+        "url": "/django-rq/schedulers/<scheduler_index>/",
+        "module": "django_rq.views.scheduler_jobs",
+        "name": "rq_scheduler_jobs",
+        "decorators": ""
+    },
+    {
         "url": "/feature-flags/",
         "module": "core.views.feature_flags",
         "name": "feature_flags",
+        "decorators": ""
+    },
+    {
+        "url": "/heidi-tips/",
+        "module": "core.views.heidi_tips",
+        "name": "heidi_tips",
+        "decorators": ""
+    },
+    {
+        "url": "/__lsa/",
+        "module": "core.views.collect_metrics",
+        "name": "collect_metrics",
         "decorators": ""
     },
     {
@@ -1701,6 +1755,30 @@
         "url": "/api-auth/logout/",
         "module": "django.contrib.auth.views.LogoutView",
         "name": "rest_framework:logout",
+        "decorators": ""
+    },
+    {
+        "url": "/api/jwt/settings",
+        "module": "jwt_auth.views.JWTSettingsAPI",
+        "name": "jwt_auth:api-jwt-settings",
+        "decorators": ""
+    },
+    {
+        "url": "/api/token/",
+        "module": "jwt_auth.views.LSAPITokenView",
+        "name": "jwt_auth:token_manage",
+        "decorators": ""
+    },
+    {
+        "url": "/api/token/refresh/",
+        "module": "jwt_auth.views.DecoratedTokenRefreshView",
+        "name": "jwt_auth:token_refresh",
+        "decorators": ""
+    },
+    {
+        "url": "/api/token/blacklist/",
+        "module": "jwt_auth.views.LSTokenBlacklistView",
+        "name": "jwt_auth:token_blacklist",
         "decorators": ""
     }
 ]

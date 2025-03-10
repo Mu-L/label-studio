@@ -1,21 +1,17 @@
-import { getRoot, types } from 'mobx-state-tree';
+import { getRoot, types } from "mobx-state-tree";
 
-import { guidGenerator } from '../core/Helpers';
-import { AreaMixin } from '../mixins/AreaMixin';
-import NormalizationMixin from '../mixins/Normalization';
-import RegionsMixin from '../mixins/Regions';
-import { VideoModel } from '../tags/object/Video';
-import { FF_LEAP_187, isFF } from '../utils/feature-flags';
+import { guidGenerator } from "../core/Helpers";
+import { AreaMixin } from "../mixins/AreaMixin";
+import NormalizationMixin from "../mixins/Normalization";
+import RegionsMixin from "../mixins/Regions";
+import { VideoModel } from "../tags/object/Video";
 
 export const onlyProps = (props, obj) => {
-  return Object.fromEntries(props.map(prop => [
-    prop,
-    obj[prop],
-  ]));
+  return Object.fromEntries(props.map((prop) => [prop, obj[prop]]));
 };
 
 const Model = types
-  .model('VideoRegionModel', {
+  .model("VideoRegionModel", {
     id: types.optional(types.identifier, guidGenerator),
     pid: types.optional(types.string, guidGenerator),
     object: types.late(() => types.reference(VideoModel)),
@@ -28,7 +24,7 @@ const Model = types
   .volatile(() => ({
     hideable: true,
   }))
-  .views(self => ({
+  .views((self) => ({
     get parent() {
       return self.object;
     },
@@ -38,24 +34,22 @@ const Model = types
     },
 
     getShape() {
-      throw new Error('Method getShape be implemented on a shape level');
+      throw new Error("Method getShape be implemented on a shape level");
     },
 
     getVisibility() {
       return true;
     },
   }))
-  .actions(self => ({
+  .actions((self) => ({
     updateShape() {
-      throw new Error('Method updateShape must be implemented on a shape level');
+      throw new Error("Method updateShape must be implemented on a shape level");
     },
 
     onSelectInOutliner() {
-      if (isFF(FF_LEAP_187)) {
-        // skip video to the first frame of this region
-        // @todo hidden/disabled timespans?
-        self.object.setFrame(self.sequence[0].frame);
-      }
+      // skip video to the first frame of this region
+      // @todo hidden/disabled timespans?
+      self.object.setFrame(self.sequence[0].frame);
     },
 
     serialize() {
@@ -92,10 +86,11 @@ const Model = types
       const sequence = Array.from(self.sequence);
       const closestKeypoint = self.closestKeypoint(frame);
       const newKeypoint = {
-        ...(self.getShape(frame) ?? closestKeypoint ?? {
-          x: 0,
-          y: 0,
-        }),
+        ...(self.getShape(frame) ??
+          closestKeypoint ?? {
+            x: 0,
+            y: 0,
+          }),
         enabled: closestKeypoint?.enabled ?? true,
         frame,
       };
@@ -106,13 +101,16 @@ const Model = types
 
       self.sequence = sequence;
 
-      self.updateShape({
-        ...newKeypoint,
-      }, newKeypoint.frame);
+      self.updateShape(
+        {
+          ...newKeypoint,
+        },
+        newKeypoint.frame,
+      );
     },
 
     removeKeypoint(frame) {
-      self.sequence = self.sequence.filter(closestKeypoint => closestKeypoint.frame !== frame);
+      self.sequence = self.sequence.filter((closestKeypoint) => closestKeypoint.frame !== frame);
     },
 
     isInLifespan(targetFrame) {
@@ -143,12 +141,6 @@ const Model = types
     },
   }));
 
-const VideoRegion = types.compose(
-  'VideoRegionModel',
-  RegionsMixin,
-  AreaMixin,
-  NormalizationMixin,
-  Model,
-);
+const VideoRegion = types.compose("VideoRegionModel", RegionsMixin, AreaMixin, NormalizationMixin, Model);
 
 export { VideoRegion };

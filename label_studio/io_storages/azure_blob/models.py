@@ -3,7 +3,8 @@
 import json
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import timedelta
+from typing import Union
 from urllib.parse import urlparse
 
 from azure.core.exceptions import ResourceNotFoundError
@@ -14,6 +15,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from io_storages.base_models import (
     ExportStorage,
@@ -22,6 +24,7 @@ from io_storages.base_models import (
     ImportStorageLink,
     ProjectStorageMixin,
 )
+from io_storages.utils import storage_can_resolve_bucket_url
 from tasks.models import Annotation
 
 from label_studio.io_storages.azure_blob.utils import AZURE
@@ -142,7 +145,7 @@ class AzureBlobImportStorageBase(AzureBlobStorageMixin, ImportStorage):
         container = r.netloc
         blob = r.path.lstrip('/')
 
-        expiry = datetime.utcnow() + timedelta(minutes=self.presign_ttl)
+        expiry = timezone.now() + timedelta(minutes=self.presign_ttl)
 
         sas_token = generate_blob_sas(
             account_name=self.get_account_name(),
@@ -155,6 +158,9 @@ class AzureBlobImportStorageBase(AzureBlobStorageMixin, ImportStorage):
         return (
             'https://' + self.get_account_name() + '.blob.core.windows.net/' + container + '/' + blob + '?' + sas_token
         )
+
+    def can_resolve_url(self, url: Union[str, None]) -> bool:
+        return storage_can_resolve_bucket_url(self, url)
 
     def get_blob_metadata(self, key):
         return AZURE.get_blob_metadata(
